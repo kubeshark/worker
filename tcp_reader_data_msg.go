@@ -3,16 +3,20 @@ package main
 import (
 	"time"
 
+	"github.com/google/gopacket"
 	"github.com/kubeshark/base/pkg/api"
 )
 
 type tcpReaderDataMsg struct {
-	bytes     []byte
-	timestamp time.Time
+	bytes []byte
+	ci    gopacket.CaptureInfo
 }
 
-func NewTcpReaderDataMsg(data []byte, timestamp time.Time) api.TcpReaderDataMsg {
-	return &tcpReaderDataMsg{data, timestamp}
+func NewTcpReaderDataMsg(data []byte, ci gopacket.CaptureInfo) api.TcpReaderDataMsg {
+	length := len(data)
+	ci.Length = length
+	ci.CaptureLength = length
+	return &tcpReaderDataMsg{data, ci}
 }
 
 func (dataMsg *tcpReaderDataMsg) GetBytes() []byte {
@@ -20,5 +24,9 @@ func (dataMsg *tcpReaderDataMsg) GetBytes() []byte {
 }
 
 func (dataMsg *tcpReaderDataMsg) GetTimestamp() time.Time {
-	return dataMsg.timestamp
+	return dataMsg.ci.Timestamp
+}
+
+func (dataMsg *tcpReaderDataMsg) GetCaptureInfo() gopacket.CaptureInfo {
+	return dataMsg.ci
 }

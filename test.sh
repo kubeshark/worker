@@ -2,4 +2,4 @@
 
 go build -o worker .
 
-sudo ./worker --hub-ws-address ws://localhost:8898/wsWorker -i any
+sudo ./worker -i any

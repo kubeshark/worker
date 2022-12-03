@@ -48,7 +48,6 @@ var tls = flag.Bool("tls", false, "Enable TLS tracing")
 var packetCapture = flag.String("packet-capture", "libpcap", "Packet capture backend. Possible values: libpcap, af_packet")
 
 var memprofile = flag.String("memprofile", "", "Write memory profile")
-var hubWsAddress = flag.String("hub-ws-address", "ws://localhost:8898/wsWorker", "The address of the Hub WebSocket endpoint.")
 
 const (
 	HostModeEnvVar             = "HOST_MODE"
@@ -80,7 +79,7 @@ func main() {
 }
 
 func run() {
-	log.Info().Str("addr", *hubWsAddress).Msg("Starting worker, WebSocket address:")
+	log.Info().Msg("Starting worker...")
 
 	hostMode := os.Getenv(HostModeEnvVar) == "1"
 	opts := &Opts{
@@ -91,14 +90,8 @@ func run() {
 
 	filteringOptions := getTrafficFilteringOptions()
 	startWorker(opts, filteredOutputItemsChannel, Extensions, filteringOptions)
-	socketConnection, err := dialSocketWithRetry(*hubWsAddress, socketConnectionRetries, socketConnectionRetryDelay)
-	if err != nil {
-		log.Fatal().Err(err).Str("addr", *hubWsAddress).Msg("Error connecting to socket server!")
-	}
 
-	log.Info().Str("addr", *hubWsAddress).Msg("Connected successfully to the WebSocket")
-
-	go pipeWorkerChannelToSocket(socketConnection, filteredOutputItemsChannel)
+	go pipeWorkerChannelToSocket(filteredOutputItemsChannel)
 }
 
 func getTrafficFilteringOptions() *api.TrafficFilteringOptions {
@@ -107,7 +100,7 @@ func getTrafficFilteringOptions() *api.TrafficFilteringOptions {
 	}
 }
 
-func pipeWorkerChannelToSocket(connection *websocket.Conn, messageDataChannel <-chan *api.OutputChannelItem) {
+func pipeWorkerChannelToSocket(messageDataChannel <-chan *api.OutputChannelItem) {
 	for messageData := range messageDataChannel {
 		marshaledData, err := models.CreateWebsocketWorkerEntryMessage(messageData)
 		if err != nil {
@@ -115,22 +108,8 @@ func pipeWorkerChannelToSocket(connection *websocket.Conn, messageDataChannel <-
 			continue
 		}
 
-		// NOTE: This is where the `*api.OutputChannelItem` leaves the code
-		// and goes into the intermediate WebSocket.
-		err = connection.WriteMessage(websocket.TextMessage, marshaledData)
-		if err != nil {
-			log.Error().Err(err).Interface("message-data", messageData).Msg("While sending message through socket server!")
-			if errors.Is(err, syscall.EPIPE) {
-				log.Warn().Msg("Detected socket disconnection, reestablishing socket connection...")
-				connection, err = dialSocketWithRetry(*hubWsAddress, socketConnectionRetries, socketConnectionRetryDelay)
-				if err != nil {
-					log.Fatal().Err(err).Msg("While re-establishing socket connection!")
-				} else {
-					log.Info().Msg("Recovered the connection successfully.")
-				}
-			}
-			continue
-		}
+		// TODO: Remove this log
+		log.Debug().Str("data", string(marshaledData)).Msg("Recieved a new item:")
 	}
 }
 

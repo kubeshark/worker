@@ -1,10 +1,15 @@
 package main
 
 import (
+	"bufio"
+	"fmt"
+	"os"
 	"sync"
 	"time"
 
+	"github.com/google/gopacket/pcapgo"
 	"github.com/kubeshark/base/pkg/api"
+	"github.com/rs/zerolog/log"
 )
 
 type tcpStreamCallbacks interface {
@@ -31,6 +36,8 @@ type tcpStream struct {
 	streamsMap     api.TcpStreamMap
 	connectionId   connectionId
 	callbacks      tcpStreamCallbacks
+	pcap           *os.File
+	pcapWriter     *pcapgo.Writer
 	sync.Mutex
 }
 
@@ -56,6 +63,15 @@ func (t *tcpStream) getId() int64 {
 
 func (t *tcpStream) setId(id int64) {
 	t.id = id
+	log.Info().Int("id", int(t.id)).Msg("New TCP stream:")
+
+	pcap, err := os.OpenFile(fmt.Sprintf("data/tcp_stream_%09d.pcap", id), os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Error().Err(err).Msg("Couldn't create PCAP:")
+	}
+	t.pcap = pcap
+
+	t.pcapWriter = pcapgo.NewWriter(bufio.NewWriter(t.pcap))
 }
 
 func (t *tcpStream) close() {
@@ -72,6 +88,12 @@ func (t *tcpStream) close() {
 	t.client.close()
 	t.server.close()
 	t.callbacks.tcpStreamClosed(t)
+
+	t.pcap.Close()
+	if !t.isProtocolIdentified() {
+		log.Info().Str("file", t.pcap.Name()).Msg("Removing PCAP:")
+		os.Remove(t.pcap.Name())
+	}
 }
 
 func (t *tcpStream) addCounterPair(counterPair *api.CounterPair) {
@@ -80,6 +102,10 @@ func (t *tcpStream) addCounterPair(counterPair *api.CounterPair) {
 
 func (t *tcpStream) addReqResMatcher(reqResMatcher api.RequestResponseMatcher) {
 	t.reqResMatchers = append(t.reqResMatchers, reqResMatcher)
+}
+
+func (t *tcpStream) isProtocolIdentified() bool {
+	return t.protocol != nil
 }
 
 func (t *tcpStream) SetProtocol(protocol *api.Protocol) {

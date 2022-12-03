@@ -137,11 +137,11 @@ func (t *tcpReassemblyStream) ReassembledSG(sg reassembly.ScatterGather, ac reas
 			// This is where we pass the reassembled information onwards
 			// This channel is read by an tcpReader object
 			diagnose.AppStats.IncReassembledTcpPayloadsCount()
-			timestamp := ac.GetCaptureInfo().Timestamp
+			ci := ac.GetCaptureInfo()
 			if dir == reassembly.TCPDirClientToServer {
-				t.tcpStream.client.sendMsgIfNotClosed(NewTcpReaderDataMsg(data, timestamp))
+				t.tcpStream.client.sendMsgIfNotClosed(NewTcpReaderDataMsg(data, ci))
 			} else {
-				t.tcpStream.server.sendMsgIfNotClosed(NewTcpReaderDataMsg(data, timestamp))
+				t.tcpStream.server.sendMsgIfNotClosed(NewTcpReaderDataMsg(data, ci))
 			}
 		}
 	}

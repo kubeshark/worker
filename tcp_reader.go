@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/kubeshark/base/pkg/api"
+	"github.com/rs/zerolog/log"
 )
 
 /* TcpReader gets reads from a channel of bytes of tcp payload, and parses it into requests and responses.
@@ -98,6 +99,11 @@ func (reader *tcpReader) rewind() {
 
 func (reader *tcpReader) populateData(msg api.TcpReaderDataMsg) {
 	reader.data = msg.GetBytes()
+
+	err := reader.parent.pcapWriter.WritePacket(msg.GetCaptureInfo(), reader.data)
+	if err != nil {
+		log.Debug().Err(err).Msg("Did an oopsy writing PCAP:")
+	}
 	reader.captureTime = msg.GetTimestamp()
 }
 
