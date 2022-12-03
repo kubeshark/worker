@@ -60,12 +60,7 @@ func (c *context) GetCaptureInfo() gopacket.CaptureInfo {
 	return c.CaptureInfo
 }
 
-func NewTcpAssembler(outputItems chan *api.OutputChannelItem, streamsMap api.TcpStreamMap, opts *Opts) (*tcpAssembler, error) {
-	var emitter api.Emitter = &api.Emitting{
-		AppStats:      &diagnose.AppStats,
-		OutputChannel: outputItems,
-	}
-
+func NewTcpAssembler(identifyMode bool, outputChannel chan *api.OutputChannelItem, streamsMap api.TcpStreamMap, opts *Opts) (*tcpAssembler, error) {
 	lastClosedConnections, err := lru.NewWithEvict(lastClosedConnectionsMaxItems, func(key interface{}, value interface{}) {})
 
 	if err != nil {
@@ -81,7 +76,7 @@ func NewTcpAssembler(outputItems chan *api.OutputChannelItem, streamsMap api.Tcp
 		stats:                  AssemblerStats{},
 	}
 
-	a.streamFactory = NewTcpStreamFactory(emitter, streamsMap, opts, a)
+	a.streamFactory = NewTcpStreamFactory(identifyMode, outputChannel, streamsMap, opts, a)
 	a.streamPool = reassembly.NewStreamPool(a.streamFactory)
 	a.Assembler = reassembly.NewAssembler(a.streamPool)
 

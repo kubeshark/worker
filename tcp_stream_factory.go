@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/kubeshark/base/pkg/api"
+	"github.com/kubeshark/worker/diagnose"
 	v1 "k8s.io/api/core/v1"
 
 	"github.com/google/gopacket"
@@ -20,14 +21,15 @@ import (
  */
 type tcpStreamFactory struct {
 	wg               sync.WaitGroup
-	emitter          api.Emitter
+	identifyMode     bool
+	outputChannel    chan *api.OutputChannelItem
 	streamsMap       api.TcpStreamMap
 	ownIps           []string
 	opts             *Opts
 	streamsCallbacks tcpStreamCallbacks
 }
 
-func NewTcpStreamFactory(emitter api.Emitter, streamsMap api.TcpStreamMap, opts *Opts, streamsCallbacks tcpStreamCallbacks) *tcpStreamFactory {
+func NewTcpStreamFactory(identifyMode bool, outputChannel chan *api.OutputChannelItem, streamsMap api.TcpStreamMap, opts *Opts, streamsCallbacks tcpStreamCallbacks) *tcpStreamFactory {
 	var ownIps []string
 
 	if localhostIPs, err := getLocalhostIPs(); err != nil {
@@ -39,7 +41,8 @@ func NewTcpStreamFactory(emitter api.Emitter, streamsMap api.TcpStreamMap, opts 
 	}
 
 	return &tcpStreamFactory{
-		emitter:          emitter,
+		identifyMode:     identifyMode,
+		outputChannel:    outputChannel,
 		streamsMap:       streamsMap,
 		ownIps:           ownIps,
 		opts:             opts,
@@ -59,7 +62,12 @@ func (factory *tcpStreamFactory) New(net, transport gopacket.Flow, tcpLayer *lay
 	props := factory.getStreamProps(srcIp, srcPort, dstIp, dstPort)
 	isTargetted := props.isTargetted
 	connectionId := getConnectionId(srcIp, srcPort, dstIp, dstPort)
-	stream := NewTcpStream(isTargetted, factory.streamsMap, getPacketOrigin(ac), connectionId, factory.streamsCallbacks)
+	stream := NewTcpStream(factory.identifyMode, isTargetted, factory.streamsMap, getPacketOrigin(ac), connectionId, factory.streamsCallbacks)
+	var emitter api.Emitter = &api.Emitting{
+		AppStats:      &diagnose.AppStats,
+		Stream:        stream,
+		OutputChannel: factory.outputChannel,
+	}
 	reassemblyStream := NewTcpReassemblyStream(fmt.Sprintf("%s:%s", net, transport), tcpLayer, fsmOptions, stream)
 	if stream.GetIsTargetted() {
 		stream.setId(factory.streamsMap.NextId())
@@ -85,7 +93,7 @@ func (factory *tcpStreamFactory) New(net, transport gopacket.Flow, tcpLayer *lay
 			stream,
 			true,
 			props.isOutgoing,
-			factory.emitter,
+			emitter,
 		)
 
 		stream.server = NewTcpReader(
@@ -99,7 +107,7 @@ func (factory *tcpStreamFactory) New(net, transport gopacket.Flow, tcpLayer *lay
 			stream,
 			false,
 			props.isOutgoing,
-			factory.emitter,
+			emitter,
 		)
 
 		factory.streamsMap.Store(stream.getId(), stream)

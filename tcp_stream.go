@@ -24,6 +24,8 @@ type tcpStreamCallbacks interface {
  */
 type tcpStream struct {
 	id             int64
+	identifyMode   bool
+	emittable      bool
 	isClosed       bool
 	protocol       *api.Protocol
 	isTargetted    bool
@@ -41,9 +43,10 @@ type tcpStream struct {
 	sync.Mutex
 }
 
-func NewTcpStream(isTargetted bool, streamsMap api.TcpStreamMap, capture api.Capture,
+func NewTcpStream(identifyMode bool, isTargetted bool, streamsMap api.TcpStreamMap, capture api.Capture,
 	connectionId connectionId, callbacks tcpStreamCallbacks) *tcpStream {
 	t := &tcpStream{
+		identifyMode: identifyMode,
 		isTargetted:  isTargetted,
 		streamsMap:   streamsMap,
 		origin:       capture,
@@ -90,7 +93,7 @@ func (t *tcpStream) close() {
 	t.callbacks.tcpStreamClosed(t)
 
 	t.pcap.Close()
-	if !t.isProtocolIdentified() {
+	if !t.isEmittable() {
 		log.Info().Str("file", t.pcap.Name()).Msg("Removing PCAP:")
 		os.Remove(t.pcap.Name())
 	}
@@ -108,6 +111,10 @@ func (t *tcpStream) isProtocolIdentified() bool {
 	return t.protocol != nil
 }
 
+func (t *tcpStream) isEmittable() bool {
+	return t.emittable
+}
+
 func (t *tcpStream) SetProtocol(protocol *api.Protocol) {
 	t.protocol = protocol
 
@@ -116,6 +123,14 @@ func (t *tcpStream) SetProtocol(protocol *api.Protocol) {
 	t.client.msgBufferMaster = make([]api.TcpReaderDataMsg, 0)
 	t.server.msgBufferMaster = make([]api.TcpReaderDataMsg, 0)
 	t.Unlock()
+}
+
+func (t *tcpStream) SetAsEmittable() {
+	t.emittable = true
+}
+
+func (t *tcpStream) GetIsIdentifyMode() bool {
+	return t.identifyMode
 }
 
 func (t *tcpStream) GetOrigin() api.Capture {

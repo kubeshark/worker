@@ -3,8 +3,10 @@ package tracer
 import "github.com/kubeshark/base/pkg/api"
 
 type tlsStream struct {
-	reader   *tlsReader
-	protocol *api.Protocol
+	identifyMode bool
+	emittable    bool
+	reader       *tlsReader
+	protocol     *api.Protocol
 }
 
 func (t *tlsStream) GetOrigin() api.Capture {
@@ -13,6 +15,14 @@ func (t *tlsStream) GetOrigin() api.Capture {
 
 func (t *tlsStream) SetProtocol(protocol *api.Protocol) {
 	t.protocol = protocol
+}
+
+func (t *tlsStream) SetAsEmittable() {
+	t.emittable = true
+}
+
+func (t *tlsStream) GetIsIdentifyMode() bool {
+	return t.identifyMode
 }
 
 func (t *tlsStream) GetReqResMatchers() []api.RequestResponseMatcher {
