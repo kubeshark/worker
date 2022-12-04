@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/kubeshark/worker/server/middlewares"
+	"github.com/kubeshark/worker/server/routes"
 	"github.com/rs/zerolog/log"
 )
 
@@ -22,6 +23,8 @@ func Build() *gin.Engine {
 	})
 
 	ginApp.Use(middlewares.CORSMiddleware())
+
+	routes.WebSocketRoutes(ginApp)
 
 	return ginApp
 }

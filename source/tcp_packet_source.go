@@ -24,19 +24,8 @@ type Handle interface {
 type tcpPacketSource struct {
 	Handle    Handle
 	defragger *ip4defrag.IPv4Defragmenter
-	Behaviour *TcpPacketSourceBehaviour
 	name      string
 	Origin    api.Capture
-}
-
-type TcpPacketSourceBehaviour struct {
-	SnapLength   int
-	TargetSizeMb int
-	Promisc      bool
-	Tstype       string
-	DecoderName  string
-	Lazy         bool
-	BpfFilter    string
 }
 
 type TcpPacketInfo struct {
@@ -44,23 +33,28 @@ type TcpPacketInfo struct {
 	Source *tcpPacketSource
 }
 
-func newTcpPacketSource(name, filename string, interfaceName string, packetCapture string,
-	behaviour TcpPacketSourceBehaviour, origin api.Capture) (*tcpPacketSource, error) {
+func NewTcpPacketSource(name, filename string, interfaceName string, packetCapture string,
+	origin api.Capture) (*tcpPacketSource, error) {
 	var err error
 
 	result := &tcpPacketSource{
 		name:      name,
 		defragger: ip4defrag.NewIPv4Defragmenter(),
-		Behaviour: &behaviour,
 		Origin:    origin,
 	}
+
+	snapLength := 65536
+	targetSizeMb := 8
+	promisc := true
+	tstype := ""
+	lazy := false
 
 	switch packetCapture {
 	case "af_packet":
 		result.Handle, err = newAfpacketHandle(
 			interfaceName,
-			behaviour.TargetSizeMb,
-			behaviour.SnapLength,
+			targetSizeMb,
+			snapLength,
 		)
 		if err != nil {
 			return nil, err
@@ -70,9 +64,9 @@ func newTcpPacketSource(name, filename string, interfaceName string, packetCaptu
 		result.Handle, err = newPcapHandle(
 			filename,
 			interfaceName,
-			behaviour.SnapLength,
-			behaviour.Promisc,
-			behaviour.Tstype,
+			snapLength,
+			promisc,
+			tstype,
 		)
 		if err != nil {
 			return nil, err
@@ -82,20 +76,11 @@ func newTcpPacketSource(name, filename string, interfaceName string, packetCaptu
 
 	var decoder gopacket.Decoder
 	var ok bool
-	if behaviour.DecoderName == "" {
-		behaviour.DecoderName = result.Handle.LinkType().String()
+	decoderName := result.Handle.LinkType().String()
+	if decoder, ok = gopacket.DecodersByLayerName[decoderName]; !ok {
+		return nil, fmt.Errorf("no decoder named %v", decoderName)
 	}
-	if decoder, ok = gopacket.DecodersByLayerName[behaviour.DecoderName]; !ok {
-		return nil, fmt.Errorf("no decoder named %v", behaviour.DecoderName)
-	}
-	result.Handle.SetDecoder(decoder, behaviour.Lazy, true)
-
-	if behaviour.BpfFilter != "" {
-		log.Info().Str("filter", behaviour.BpfFilter).Msg("Using BPF filter:")
-		if err = result.setBPFFilter(behaviour.BpfFilter); err != nil {
-			return nil, fmt.Errorf("BPF filter error: %v", err)
-		}
-	}
+	result.Handle.SetDecoder(decoder, lazy, true)
 
 	return result, nil
 }
@@ -118,7 +103,7 @@ func (source *tcpPacketSource) Stats() (packetsReceived uint, packetsDropped uin
 	return source.Handle.Stats()
 }
 
-func (source *tcpPacketSource) readPackets(ipdefrag bool, packets chan<- TcpPacketInfo) {
+func (source *tcpPacketSource) ReadPackets(packets chan<- TcpPacketInfo) {
 	log.Info().Str("source", source.name).Msg("Start reading packets from:")
 
 	for {
@@ -135,28 +120,26 @@ func (source *tcpPacketSource) readPackets(ipdefrag bool, packets chan<- TcpPack
 		}
 
 		// defrag the IPv4 packet if required
-		if ipdefrag {
-			if ip4Layer := packet.Layer(layers.LayerTypeIPv4); ip4Layer != nil {
-				ip4 := ip4Layer.(*layers.IPv4)
-				l := ip4.Length
-				newip4, err := source.defragger.DefragIPv4(ip4)
-				if err != nil {
-					log.Debug().Err(err).Msg("While de-fragmenting!")
-					continue
-				} else if newip4 == nil {
-					log.Debug().Msg("Fragment...")
-					continue // packet fragment, we don't have whole packet yet.
+		if ip4Layer := packet.Layer(layers.LayerTypeIPv4); ip4Layer != nil {
+			ip4 := ip4Layer.(*layers.IPv4)
+			l := ip4.Length
+			newip4, err := source.defragger.DefragIPv4(ip4)
+			if err != nil {
+				log.Debug().Err(err).Msg("While de-fragmenting!")
+				continue
+			} else if newip4 == nil {
+				log.Debug().Msg("Fragment...")
+				continue // packet fragment, we don't have whole packet yet.
+			}
+			if newip4.Length != l {
+				diagnose.InternalStats.Ipdefrag++
+				log.Debug().Int("layer-type", int(newip4.NextLayerType())).Msg("Decoding re-assembled packet:")
+				pb, ok := packet.(gopacket.PacketBuilder)
+				if !ok {
+					log.Debug().Msg("Not a PacketBuilder")
 				}
-				if newip4.Length != l {
-					diagnose.InternalStats.Ipdefrag++
-					log.Debug().Int("layer-type", int(newip4.NextLayerType())).Msg("Decoding re-assembled packet:")
-					pb, ok := packet.(gopacket.PacketBuilder)
-					if !ok {
-						log.Debug().Msg("Not a PacketBuilder")
-					}
-					nextDecoder := newip4.NextLayerType()
-					_ = nextDecoder.Decode(newip4.Payload, pb)
-				}
+				nextDecoder := newip4.NextLayerType()
+				_ = nextDecoder.Decode(newip4.Payload, pb)
 			}
 		}
 

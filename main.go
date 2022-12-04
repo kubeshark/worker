@@ -20,10 +20,7 @@ import (
 )
 
 var maxcount = flag.Int64("c", -1, "Only grab this many packets, then exit")
-var decoder = flag.String("decoder", "", "Name of the decoder to use (default: guess from capture)")
 var statsevery = flag.Int("stats", 60, "Output statistics every N seconds")
-var lazy = flag.Bool("lazy", false, "If true, do lazy decoding")
-var nodefrag = flag.Bool("nodefrag", false, "If true, do not do IPv4 defrag")
 var checksum = flag.Bool("checksum", false, "Check TCP checksum")                                                      // global
 var nooptcheck = flag.Bool("nooptcheck", true, "Do not check TCP options (useful to ignore MSS on captures with TSO)") // global
 var ignorefsmerr = flag.Bool("ignorefsmerr", true, "Ignore TCP FSM errors")                                            // global
@@ -32,18 +29,12 @@ var verbose = flag.Bool("verbose", false, "Be verbose")
 var port = flag.Int("port", 80, "Port number of the HTTP server")
 var debug = flag.Bool("debug", false, "Enable debug mode")
 var quiet = flag.Bool("quiet", false, "Be quiet regarding errors")
-var hexdumppkt = flag.Bool("dumppkt", false, "Dump packet as hex")
 var procfs = flag.String("procfs", "/proc", "The procfs directory, used when mapping host volumes into a container")
 var ignoredPorts = flag.String("ignore-ports", "", "A comma separated list of ports to ignore")
 var maxLiveStreams = flag.Int("max-live-streams", 500, "Maximum live streams to handle concurrently")
 
 // capture
 var iface = flag.String("i", "en0", "Interface to read packets from")
-var fname = flag.String("r", "", "Filename to read from, overrides -i")
-var snaplen = flag.Int("s", 65536, "Snap length (number of bytes max to read per packet")
-var targetSizeMb = flag.Int("target-size-mb", 8, "AF_PACKET target block size (MB)")
-var tstype = flag.String("timestamp-type", "", "Type of timestamps to use")
-var promisc = flag.Bool("promisc", true, "Set promiscuous mode")
 var staleTimeoutSeconds = flag.Int("staletimout", 120, "Max time in seconds to keep connections which don't transmit data")
 var servicemesh = flag.Bool("servicemesh", false, "Record decrypted traffic if the cluster is configured with a service mesh and with mtls")
 var tls = flag.Bool("tls", false, "Enable TLS tracing")

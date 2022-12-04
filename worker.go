@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	"os"
 	"runtime"
@@ -70,7 +69,7 @@ func UpdateTargets(newTargets []v1.Pod) {
 
 	targettedPods = newTargets
 
-	packetSourceManager.UpdatePods(newTargets, !*nodefrag, mainPacketInputChan)
+	packetSourceManager.UpdatePods(newTargets, mainPacketInputChan)
 
 	if tracerInstance != nil && os.Getenv("KUBESHARK_GLOBAL_GOLANG_PID") == "" {
 		if err := tracer.UpdateTargets(tracerInstance, &newTargets, *procfs); err != nil {
@@ -172,23 +171,8 @@ func initializePacketSources() error {
 		packetSourceManager.Close()
 	}
 
-	var bpffilter string
-	if len(flag.Args()) > 0 {
-		bpffilter = strings.Join(flag.Args(), " ")
-	}
-
-	behaviour := source.TcpPacketSourceBehaviour{
-		SnapLength:   *snaplen,
-		TargetSizeMb: *targetSizeMb,
-		Promisc:      *promisc,
-		Tstype:       *tstype,
-		DecoderName:  *decoder,
-		Lazy:         *lazy,
-		BpfFilter:    bpffilter,
-	}
-
 	var err error
-	packetSourceManager, err = source.NewPacketSourceManager(*procfs, *fname, *iface, *servicemesh, targettedPods, behaviour, !*nodefrag, *packetCapture, mainPacketInputChan)
+	packetSourceManager, err = source.NewPacketSourceManager(*procfs, *iface, *servicemesh, targettedPods, *packetCapture, mainPacketInputChan)
 	return err
 }
 
@@ -225,7 +209,7 @@ func startAssembler(streamsMap api.TcpStreamMap, assembler *tcpAssembler) {
 
 	go printPeriodicStats(&cleaner, assembler)
 
-	assembler.processPackets(*hexdumppkt, mainPacketInputChan)
+	assembler.processPackets(mainPacketInputChan)
 
 	if diagnose.ErrorsMap.OutputLevel >= 2 {
 		assembler.dumpStreamPool()

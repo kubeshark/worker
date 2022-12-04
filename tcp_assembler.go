@@ -93,10 +93,11 @@ func NewTcpAssembler(identifyMode bool, outputChannel chan *api.OutputChannelIte
 	return a, nil
 }
 
-func (a *tcpAssembler) processPackets(dumpPacket bool, packets <-chan source.TcpPacketInfo) {
+func (a *tcpAssembler) processPackets(packets <-chan source.TcpPacketInfo) {
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, os.Interrupt)
 	ticker := time.NewTicker(a.staleConnectionTimeout)
+	dumpPacket := false
 
 out:
 	for {
