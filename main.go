@@ -14,6 +14,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/kubeshark/base/pkg/api"
 	"github.com/kubeshark/base/pkg/models"
+	"github.com/kubeshark/worker/server"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -28,6 +29,7 @@ var nooptcheck = flag.Bool("nooptcheck", true, "Do not check TCP options (useful
 var ignorefsmerr = flag.Bool("ignorefsmerr", true, "Ignore TCP FSM errors")                                            // global
 var allowmissinginit = flag.Bool("allowmissinginit", true, "Support streams without SYN/SYN+ACK/ACK sequence")         // global
 var verbose = flag.Bool("verbose", false, "Be verbose")
+var port = flag.Int("port", 80, "Port number of the HTTP server")
 var debug = flag.Bool("debug", false, "Enable debug mode")
 var quiet = flag.Bool("quiet", false, "Be quiet regarding errors")
 var hexdumppkt = flag.Bool("dumppkt", false, "Dump packet as hex")
@@ -92,6 +94,9 @@ func run() {
 	startWorker(opts, filteredOutputItemsChannel, Extensions, filteringOptions)
 
 	go pipeWorkerChannelToSocket(filteredOutputItemsChannel)
+
+	ginApp := server.Build()
+	server.Start(ginApp, *port)
 }
 
 func getTrafficFilteringOptions() *api.TrafficFilteringOptions {

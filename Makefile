@@ -29,7 +29,7 @@ setcap:
 	sudo setcap cap_net_raw,cap_net_admin,cap_sys_admin,cap_sys_ptrace,cap_sys_resource=eip ./worker
 
 run: setcap ## Run the program. Requires Hub being available on port 8898
-	./worker -i any -debug
+	./worker -i any -port 8897 -debug
 
 docker-repo:
 	export DOCKER_REPO='kubeshark/worker'
