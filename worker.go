@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/kubeshark/base/pkg/api"
+	"github.com/kubeshark/worker/assemblers"
 	"github.com/kubeshark/worker/diagnose"
 	"github.com/kubeshark/worker/source"
 	"github.com/kubeshark/worker/tracer"
@@ -21,25 +22,14 @@ import (
 
 const cleanPeriod = time.Second * 10
 
-type Opts struct {
-	HostMode               bool
-	IgnoredPorts           []uint16
-	maxLiveStreams         int
-	staleConnectionTimeout time.Duration
-}
-
-var extensions []*api.Extension                     // global
-var filteringOptions *api.TrafficFilteringOptions   // global
-var targettedPods []v1.Pod                          // global
 var packetSourceManager *source.PacketSourceManager // global
 var mainPacketInputChan chan source.TcpPacketInfo   // global
 var tracerInstance *tracer.Tracer                   // global
 
-func startWorker(opts *Opts, outputItems chan *api.OutputChannelItem, extensionsRef []*api.Extension, options *api.TrafficFilteringOptions) {
-	extensions = extensionsRef
-	filteringOptions = options
+func startWorker(opts *assemblers.Opts, outputItems chan *api.OutputChannelItem, extensions []*api.Extension, options *api.TrafficFilteringOptions) {
+	assemblers.FilteringOptions = options
 
-	streamsMap := NewTcpStreamMap()
+	streamsMap := assemblers.NewTcpStreamMap()
 
 	if *tls {
 		for _, e := range extensions {
@@ -50,8 +40,10 @@ func startWorker(opts *Opts, outputItems chan *api.OutputChannelItem, extensions
 		}
 	}
 
-	if GetMemoryProfilingEnabled() {
-		diagnose.StartMemoryProfiler(os.Getenv(MemoryProfilingDumpPath), os.Getenv(MemoryProfilingTimeIntervalSeconds))
+	if assemblers.GetMemoryProfilingEnabled() {
+		diagnose.StartMemoryProfiler(
+			os.Getenv(assemblers.MemoryProfilingDumpPath),
+			os.Getenv(assemblers.MemoryProfilingTimeIntervalSeconds))
 	}
 
 	assembler, err := initializeWorker(opts, outputItems, streamsMap)
@@ -67,7 +59,7 @@ func startWorker(opts *Opts, outputItems chan *api.OutputChannelItem, extensions
 func UpdateTargets(newTargets []v1.Pod) {
 	success := true
 
-	targettedPods = newTargets
+	assemblers.TargettedPods = newTargets
 
 	packetSourceManager.UpdatePods(newTargets, mainPacketInputChan)
 
@@ -83,7 +75,7 @@ func UpdateTargets(newTargets []v1.Pod) {
 
 func printNewTargets(success bool) {
 	printStr := ""
-	for _, pod := range targettedPods {
+	for _, pod := range assemblers.TargettedPods {
 		printStr += fmt.Sprintf("%s (%s), ", pod.Status.PodIP, pod.Name)
 	}
 	printStr = strings.TrimRight(printStr, ", ")
@@ -95,7 +87,7 @@ func printNewTargets(success bool) {
 	}
 }
 
-func printPeriodicStats(cleaner *Cleaner, assembler *tcpAssembler) {
+func printPeriodicStats(cleaner *Cleaner, assembler *assemblers.TcpAssembler) {
 	statsPeriod := time.Second * time.Duration(*statsevery)
 	ticker := time.NewTicker(statsPeriod)
 
@@ -153,8 +145,8 @@ func printPeriodicStats(cleaner *Cleaner, assembler *tcpAssembler) {
 		log.Info().
 			Msg(fmt.Sprintf(
 				"Cleaner - flushed connections: %d, closed connections: %d, deleted messages: %d",
-				assemblerStats.flushedConnections,
-				assemblerStats.closedConnections,
+				assemblerStats.FlushedConnections,
+				assemblerStats.ClosedConnections,
 				cleanStats.deleted,
 			))
 		currentAppStats := diagnose.AppStats.DumpStats()
@@ -172,11 +164,11 @@ func initializePacketSources() error {
 	}
 
 	var err error
-	packetSourceManager, err = source.NewPacketSourceManager(*procfs, *iface, *servicemesh, targettedPods, *packetCapture, mainPacketInputChan)
+	packetSourceManager, err = source.NewPacketSourceManager(*procfs, *iface, *servicemesh, assemblers.TargettedPods, *packetCapture, mainPacketInputChan)
 	return err
 }
 
-func initializeWorker(opts *Opts, outputItems chan *api.OutputChannelItem, streamsMap api.TcpStreamMap) (*tcpAssembler, error) {
+func initializeWorker(opts *assemblers.Opts, outputItems chan *api.OutputChannelItem, streamsMap api.TcpStreamMap) (*assemblers.TcpAssembler, error) {
 	diagnose.InitializeErrorsMap(*debug, *verbose, *quiet)
 	diagnose.InitializeWorkerInternalStats()
 
@@ -187,13 +179,13 @@ func initializeWorker(opts *Opts, outputItems chan *api.OutputChannelItem, strea
 	}
 
 	opts.IgnoredPorts = append(opts.IgnoredPorts, buildIgnoredPortsList(*ignoredPorts)...)
-	opts.maxLiveStreams = *maxLiveStreams
-	opts.staleConnectionTimeout = time.Duration(*staleTimeoutSeconds) * time.Second
+	opts.MaxLiveStreams = *maxLiveStreams
+	opts.StaleConnectionTimeout = time.Duration(*staleTimeoutSeconds) * time.Second
 
-	return NewTcpAssembler(true, outputItems, streamsMap, opts)
+	return assemblers.NewTcpAssembler(true, outputItems, streamsMap, opts)
 }
 
-func startAssembler(streamsMap api.TcpStreamMap, assembler *tcpAssembler) {
+func startAssembler(streamsMap api.TcpStreamMap, assembler *assemblers.TcpAssembler) {
 	go streamsMap.CloseTimedoutTcpStreamChannels()
 
 	diagnose.AppStats.SetStartTime(time.Now())
@@ -209,17 +201,17 @@ func startAssembler(streamsMap api.TcpStreamMap, assembler *tcpAssembler) {
 
 	go printPeriodicStats(&cleaner, assembler)
 
-	assembler.processPackets(mainPacketInputChan)
+	assembler.ProcessPackets(mainPacketInputChan)
 
 	if diagnose.ErrorsMap.OutputLevel >= 2 {
-		assembler.dumpStreamPool()
+		assembler.DumpStreamPool()
 	}
 
 	if err := diagnose.DumpMemoryProfile(*memprofile); err != nil {
 		log.Error().Err(err).Msg("Couldn't dump memory profile!")
 	}
 
-	assembler.waitAndDump()
+	assembler.WaitAndDump()
 
 	diagnose.InternalStats.PrintStatsSummary()
 	diagnose.ErrorsMap.PrintSummary()
@@ -237,7 +229,7 @@ func startTracer(extension *api.Extension, outputItems chan *api.OutputChannelIt
 		return nil
 	}
 
-	if err := tracer.UpdateTargets(&tls, &targettedPods, *procfs); err != nil {
+	if err := tracer.UpdateTargets(&tls, &assemblers.TargettedPods, *procfs); err != nil {
 		tracer.LogError(err)
 		return nil
 	}

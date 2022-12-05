@@ -1,4 +1,4 @@
-package main
+package assemblers
 
 import (
 	"encoding/hex"
@@ -32,11 +32,11 @@ func NewConnectionId(c string) connectionId {
 }
 
 type AssemblerStats struct {
-	flushedConnections int
-	closedConnections  int
+	FlushedConnections int
+	ClosedConnections  int
 }
 
-type tcpAssembler struct {
+type TcpAssembler struct {
 	*reassembly.Assembler
 	streamPool             *reassembly.StreamPool
 	streamFactory          *tcpStreamFactory
@@ -60,19 +60,19 @@ func (c *context) GetCaptureInfo() gopacket.CaptureInfo {
 	return c.CaptureInfo
 }
 
-func NewTcpAssembler(identifyMode bool, outputChannel chan *api.OutputChannelItem, streamsMap api.TcpStreamMap, opts *Opts) (*tcpAssembler, error) {
+func NewTcpAssembler(identifyMode bool, outputChannel chan *api.OutputChannelItem, streamsMap api.TcpStreamMap, opts *Opts) (*TcpAssembler, error) {
 	lastClosedConnections, err := lru.NewWithEvict(lastClosedConnectionsMaxItems, func(key interface{}, value interface{}) {})
 
 	if err != nil {
 		return nil, err
 	}
 
-	a := &tcpAssembler{
+	a := &TcpAssembler{
 		ignoredPorts:           opts.IgnoredPorts,
 		lastClosedConnections:  lastClosedConnections,
 		liveConnections:        make(map[connectionId]bool),
-		maxLiveStreams:         opts.maxLiveStreams,
-		staleConnectionTimeout: opts.staleConnectionTimeout,
+		maxLiveStreams:         opts.MaxLiveStreams,
+		staleConnectionTimeout: opts.StaleConnectionTimeout,
 		stats:                  AssemblerStats{},
 	}
 
@@ -93,7 +93,7 @@ func NewTcpAssembler(identifyMode bool, outputChannel chan *api.OutputChannelIte
 	return a, nil
 }
 
-func (a *tcpAssembler) processPackets(packets <-chan source.TcpPacketInfo) {
+func (a *TcpAssembler) ProcessPackets(packets <-chan source.TcpPacketInfo) {
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, os.Interrupt)
 	ticker := time.NewTicker(a.staleConnectionTimeout)
@@ -106,9 +106,7 @@ out:
 			if !ok {
 				break out
 			}
-			if a.processPacket(packetInfo, dumpPacket) {
-				break out
-			}
+			a.processPacket(packetInfo, dumpPacket)
 		case <-signalChan:
 			log.Info().Msg("Caught SIGINT: aborting")
 			break out
@@ -121,7 +119,7 @@ out:
 	log.Debug().Int("closed", closed).Msg("Final flush.")
 }
 
-func (a *tcpAssembler) processPacket(packetInfo source.TcpPacketInfo, dumpPacket bool) bool {
+func (a *TcpAssembler) processPacket(packetInfo source.TcpPacketInfo, dumpPacket bool) {
 	packetsCount := diagnose.AppStats.IncPacketsCount()
 
 	if packetsCount%packetsSeenLogThreshold == 0 {
@@ -139,24 +137,9 @@ func (a *tcpAssembler) processPacket(packetInfo source.TcpPacketInfo, dumpPacket
 	if tcp != nil {
 		a.processTcpPacket(packetInfo.Source.Origin, packet, tcp.(*layers.TCP))
 	}
-
-	done := *maxcount > 0 && int64(diagnose.AppStats.PacketsCount) >= *maxcount
-	if done {
-		errorMapLen, _ := diagnose.ErrorsMap.GetErrorsSummary()
-		log.Info().Msg(
-			fmt.Sprintf(
-				"Processed %v packets (%v bytes) in %v (errors: %v, errTypes:%v)",
-				diagnose.AppStats.PacketsCount,
-				diagnose.AppStats.ProcessedBytes,
-				time.Since(diagnose.AppStats.StartTime),
-				diagnose.ErrorsMap.ErrorsCount,
-				errorMapLen,
-			))
-	}
-	return done
 }
 
-func (a *tcpAssembler) processTcpPacket(origin api.Capture, packet gopacket.Packet, tcp *layers.TCP) {
+func (a *TcpAssembler) processTcpPacket(origin api.Capture, packet gopacket.Packet, tcp *layers.TCP) {
 	diagnose.AppStats.IncTcpPacketsCount()
 	if a.shouldIgnorePort(uint16(tcp.DstPort)) || a.shouldIgnorePort(uint16(tcp.SrcPort)) {
 		diagnose.AppStats.IncIgnoredPacketsCount()
@@ -186,20 +169,20 @@ func (a *tcpAssembler) processTcpPacket(origin api.Capture, packet gopacket.Pack
 	a.AssembleWithContext(packet.NetworkLayer().NetworkFlow(), tcp, &c)
 }
 
-func (a *tcpAssembler) tcpStreamCreated(stream *tcpStream) {
+func (a *TcpAssembler) tcpStreamCreated(stream *tcpStream) {
 	a.lock.Lock()
 	a.liveConnections[stream.connectionId] = true
 	a.lock.Unlock()
 }
 
-func (a *tcpAssembler) tcpStreamClosed(stream *tcpStream) {
+func (a *TcpAssembler) tcpStreamClosed(stream *tcpStream) {
 	a.lock.Lock()
 	a.lastClosedConnections.Add(stream.connectionId, time.Now().UnixMilli())
 	delete(a.liveConnections, stream.connectionId)
 	a.lock.Unlock()
 }
 
-func (a *tcpAssembler) isRecentlyClosed(c connectionId) bool {
+func (a *TcpAssembler) isRecentlyClosed(c connectionId) bool {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 
@@ -212,7 +195,7 @@ func (a *tcpAssembler) isRecentlyClosed(c connectionId) bool {
 	return false
 }
 
-func (a *tcpAssembler) shouldThrottle(c connectionId) bool {
+func (a *TcpAssembler) shouldThrottle(c connectionId) bool {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 
@@ -223,16 +206,16 @@ func (a *tcpAssembler) shouldThrottle(c connectionId) bool {
 	return len(a.liveConnections) > a.maxLiveStreams
 }
 
-func (a *tcpAssembler) dumpStreamPool() {
+func (a *TcpAssembler) DumpStreamPool() {
 	a.streamPool.Dump()
 }
 
-func (a *tcpAssembler) waitAndDump() {
+func (a *TcpAssembler) WaitAndDump() {
 	a.streamFactory.WaitGoRoutines()
 	log.Debug().Msg(a.Dump())
 }
 
-func (a *tcpAssembler) shouldIgnorePort(port uint16) bool {
+func (a *TcpAssembler) shouldIgnorePort(port uint16) bool {
 	for _, p := range a.ignoredPorts {
 		if port == p {
 			return true
@@ -242,14 +225,14 @@ func (a *tcpAssembler) shouldIgnorePort(port uint16) bool {
 	return false
 }
 
-func (a *tcpAssembler) periodicClean() {
+func (a *TcpAssembler) periodicClean() {
 	flushed, closed := a.FlushCloseOlderThan(time.Now().Add(-a.staleConnectionTimeout))
 	stats := a.stats
-	stats.closedConnections += closed
-	stats.flushedConnections += flushed
+	stats.ClosedConnections += closed
+	stats.FlushedConnections += flushed
 }
 
-func (a *tcpAssembler) DumpStats() AssemblerStats {
+func (a *TcpAssembler) DumpStats() AssemblerStats {
 	result := a.stats
 	a.stats = AssemblerStats{}
 	return result

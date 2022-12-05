@@ -1,4 +1,4 @@
-package main
+package protos
 
 import (
 	"sort"
@@ -16,7 +16,7 @@ var (
 	ProtocolsMap  map[string]*api.Protocol  //global
 )
 
-func loadExtensions() {
+func LoadExtensions() {
 	Extensions = make([]*api.Extension, 0)
 	ExtensionsMap = make(map[string]*api.Extension)
 	ProtocolsMap = make(map[string]*api.Protocol)

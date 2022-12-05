@@ -1,4 +1,4 @@
-package main
+package assemblers
 
 import (
 	"encoding/binary"
@@ -10,12 +10,15 @@ import (
 )
 
 type tcpReassemblyStream struct {
-	ident      string
-	tcpState   *reassembly.TCPSimpleFSM
-	fsmerr     bool
-	optchecker reassembly.TCPOptionCheck
-	isDNS      bool
-	tcpStream  *tcpStream
+	ident           string
+	tcpState        *reassembly.TCPSimpleFSM
+	fsmerr          bool
+	optchecker      reassembly.TCPOptionCheck
+	isDNS           bool
+	tcpStream       *tcpStream
+	notignorefsmerr bool
+	optcheck        bool
+	checksum        bool
 }
 
 func NewTcpReassemblyStream(ident string, tcp *layers.TCP, fsmOptions reassembly.TCPSimpleFSMOptions, stream *tcpStream) reassembly.Stream {
@@ -37,7 +40,7 @@ func (t *tcpReassemblyStream) Accept(tcp *layers.TCP, ci gopacket.CaptureInfo, d
 			t.fsmerr = true
 			diagnose.InternalStats.RejectConnFsm++
 		}
-		if !*ignorefsmerr {
+		if t.notignorefsmerr {
 			return false
 		}
 	}
@@ -46,13 +49,13 @@ func (t *tcpReassemblyStream) Accept(tcp *layers.TCP, ci gopacket.CaptureInfo, d
 	if err != nil {
 		diagnose.ErrorsMap.SilentError("OptionChecker-rejection", "%s: Packet rejected by OptionChecker: %s", t.ident, err)
 		diagnose.InternalStats.RejectOpt++
-		if !*nooptcheck {
+		if t.optcheck {
 			return false
 		}
 	}
 	// Checksum
 	accept := true
-	if *checksum {
+	if t.checksum {
 		c, err := tcp.ComputeChecksum()
 		if err != nil {
 			diagnose.ErrorsMap.SilentError("ChecksumCompute", "%s: Got error computing checksum: %s", t.ident, err)

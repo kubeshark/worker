@@ -14,17 +14,14 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/kubeshark/base/pkg/api"
 	"github.com/kubeshark/base/pkg/models"
+	"github.com/kubeshark/worker/assemblers"
+	"github.com/kubeshark/worker/protos"
 	"github.com/kubeshark/worker/server"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
-var maxcount = flag.Int64("c", -1, "Only grab this many packets, then exit")
 var statsevery = flag.Int("stats", 60, "Output statistics every N seconds")
-var checksum = flag.Bool("checksum", false, "Check TCP checksum")                                                      // global
-var nooptcheck = flag.Bool("nooptcheck", true, "Do not check TCP options (useful to ignore MSS on captures with TSO)") // global
-var ignorefsmerr = flag.Bool("ignorefsmerr", true, "Ignore TCP FSM errors")                                            // global
-var allowmissinginit = flag.Bool("allowmissinginit", true, "Support streams without SYN/SYN+ACK/ACK sequence")         // global
 var verbose = flag.Bool("verbose", false, "Be verbose")
 var port = flag.Int("port", 80, "Port number of the HTTP server")
 var debug = flag.Bool("debug", false, "Enable debug mode")
@@ -60,7 +57,7 @@ func main() {
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	}
 
-	loadExtensions()
+	protos.LoadExtensions()
 
 	run()
 
@@ -75,14 +72,14 @@ func run() {
 	log.Info().Msg("Starting worker...")
 
 	hostMode := os.Getenv(HostModeEnvVar) == "1"
-	opts := &Opts{
+	opts := &assemblers.Opts{
 		HostMode: hostMode,
 	}
 
 	filteredOutputItemsChannel := make(chan *api.OutputChannelItem)
 
 	filteringOptions := getTrafficFilteringOptions()
-	startWorker(opts, filteredOutputItemsChannel, Extensions, filteringOptions)
+	startWorker(opts, filteredOutputItemsChannel, protos.Extensions, filteringOptions)
 
 	go pipeWorkerChannelToSocket(filteredOutputItemsChannel)
 
