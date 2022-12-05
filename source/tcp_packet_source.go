@@ -111,6 +111,8 @@ func (source *tcpPacketSource) ReadPackets(packets chan<- TcpPacketInfo) {
 
 		if err == io.EOF {
 			log.Info().Str("source", source.name).Msg("Got EOF while reading packets from:")
+			close(packets)
+			log.Info().Str("source", source.name).Msg("Closed packet channel because of EOF.")
 			return
 		} else if err != nil {
 			if err.Error() != "Timeout Expired" {

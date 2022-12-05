@@ -1,12 +1,15 @@
 package routes
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/kubeshark/base/pkg/api"
+	"github.com/kubeshark/worker/assemblers"
 	"github.com/kubeshark/worker/source"
 	"github.com/rs/zerolog/log"
 )
@@ -22,13 +25,13 @@ func init() {
 	websocketUpgrader.CheckOrigin = func(r *http.Request) bool { return true } // like cors for web socket
 }
 
-func WebSocketRoutes(app *gin.Engine) {
+func WebSocketRoutes(app *gin.Engine, opts *assemblers.Opts, streamsMap api.TcpStreamMap) {
 	app.GET("/ws", func(c *gin.Context) {
-		websocketHandler(c)
+		websocketHandler(c, opts, streamsMap)
 	})
 }
 
-func websocketHandler(c *gin.Context) {
+func websocketHandler(c *gin.Context, opts *assemblers.Opts, streamsMap api.TcpStreamMap) {
 	ws, err := websocketUpgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to set WebSocket upgrade:")
@@ -40,20 +43,46 @@ func websocketHandler(c *gin.Context) {
 		log.Error().Err(err).Msg("Failed get the list of PCAP files!")
 	}
 
-	// outputChannel := make(chan *api.OutputChannelItem)
-	packets := make(chan source.TcpPacketInfo)
+	outputChannel := make(chan *api.OutputChannelItem)
+	go writeChannelToSocket(outputChannel, ws)
 
 	for _, pcap := range pcapFiles {
-		s, err := source.NewTcpPacketSource("ws", pcap.Name(), "", "libpcap", api.Pcap)
-		log.Error().Err(err).Msg("Failed to create TCP packet source!")
+		log.Info().Str("pcap", pcap.Name()).Msg("Reading:")
+		packets := make(chan source.TcpPacketInfo)
+		s, err := source.NewTcpPacketSource(pcap.Name(), "data/"+pcap.Name(), "", "libpcap", api.Pcap)
+		if err != nil {
+			log.Error().Err(err).Str("pcap", pcap.Name()).Msg("Failed to create TCP packet source!")
+			continue
+		}
 		go s.ReadPackets(packets)
 
-		// assembler := NewTcpAssembler(false, outputChannel, streamsMap, opts)
-		// assembler.processPackets(packets)
+		assembler, err := assemblers.NewTcpAssembler(false, outputChannel, streamsMap, opts)
+		if err != nil {
+			log.Error().Err(err).Str("pcap", pcap.Name()).Msg("Failed creating TCP assembler:")
+			continue
+		}
+		for {
+			packetInfo, ok := <-packets
+			if !ok {
+				break
+			}
+			fmt.Printf("packetInfo: %v\n", packetInfo)
+			assembler.ProcessPacket(packetInfo, false)
+		}
 	}
+}
 
-	for {
-		err = ws.WriteMessage(1, []byte("Hi Client!"))
+func writeChannelToSocket(outputChannel <-chan *api.OutputChannelItem, ws *websocket.Conn) {
+	for item := range outputChannel {
+		log.Info().Interface("item", item).Msg("New item:")
+
+		data, err := json.Marshal(item)
+		if err != nil {
+			log.Error().Err(err).Msg("Failed marshalling item:")
+			break
+		}
+
+		err = ws.WriteMessage(1, data)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to set write message to WebSocket:")
 			break

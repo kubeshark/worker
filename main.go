@@ -75,34 +75,20 @@ func run() {
 	opts := &assemblers.Opts{
 		HostMode: hostMode,
 	}
+	streamsMap := assemblers.NewTcpStreamMap()
 
 	filteredOutputItemsChannel := make(chan *api.OutputChannelItem)
 
 	filteringOptions := getTrafficFilteringOptions()
-	startWorker(opts, filteredOutputItemsChannel, protos.Extensions, filteringOptions)
+	startWorker(opts, streamsMap, filteredOutputItemsChannel, protos.Extensions, filteringOptions)
 
-	go pipeWorkerChannelToSocket(filteredOutputItemsChannel)
-
-	ginApp := server.Build()
+	ginApp := server.Build(opts, streamsMap)
 	server.Start(ginApp, *port)
 }
 
 func getTrafficFilteringOptions() *api.TrafficFilteringOptions {
 	return &api.TrafficFilteringOptions{
 		IgnoredUserAgents: []string{},
-	}
-}
-
-func pipeWorkerChannelToSocket(messageDataChannel <-chan *api.OutputChannelItem) {
-	for messageData := range messageDataChannel {
-		marshaledData, err := models.CreateWebsocketWorkerEntryMessage(messageData)
-		if err != nil {
-			log.Error().Err(err).Interface("message-data", messageData).Msg("While converting message to JSON!")
-			continue
-		}
-
-		// TODO: Remove this log
-		log.Debug().Str("data", string(marshaledData)).Msg("Recieved a new item:")
 	}
 }
 

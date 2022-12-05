@@ -2,8 +2,12 @@ package assemblers
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"runtime"
 	_debug "runtime/debug"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -17,9 +21,38 @@ type tcpStreamMap struct {
 	streamId int64
 }
 
+func getIdFromPcapFiles() int64 {
+	pcapFiles, err := os.ReadDir("./data")
+	if err != nil {
+		log.Error().Err(err).Msg("Failed get the list of PCAP files!")
+		return 0
+	}
+
+	if len(pcapFiles) == 0 {
+		var id int64 = 0
+		log.Info().Int("id", int(id)).Msg("No PCAP files are found! Starting from zero:")
+		return id
+	}
+
+	fileName := pcapFiles[len(pcapFiles)-1].Name()
+	segments := strings.Split(fileName[:len(fileName)-len(filepath.Ext(fileName))], "_")
+	segment := strings.TrimLeft(segments[len(segments)-1], "0")
+
+	id, err := strconv.ParseInt(segment, 0, 10)
+	if err != nil {
+		log.Error().Err(err).Str("segment", segment).Msg("Can't parse the segment:")
+		return 0
+	}
+
+	log.Info().Int("id", int(id)).Msg("Continuing from stream ID:")
+
+	return id
+}
+
 func NewTcpStreamMap() api.TcpStreamMap {
 	return &tcpStreamMap{
-		streams: &sync.Map{},
+		streams:  &sync.Map{},
+		streamId: getIdFromPcapFiles(),
 	}
 }
 

@@ -106,7 +106,7 @@ out:
 			if !ok {
 				break out
 			}
-			a.processPacket(packetInfo, dumpPacket)
+			a.ProcessPacket(packetInfo, dumpPacket)
 		case <-signalChan:
 			log.Info().Msg("Caught SIGINT: aborting")
 			break out
@@ -119,7 +119,7 @@ out:
 	log.Debug().Int("closed", closed).Msg("Final flush.")
 }
 
-func (a *TcpAssembler) processPacket(packetInfo source.TcpPacketInfo, dumpPacket bool) {
+func (a *TcpAssembler) ProcessPacket(packetInfo source.TcpPacketInfo, dumpPacket bool) {
 	packetsCount := diagnose.AppStats.IncPacketsCount()
 
 	if packetsCount%packetsSeenLogThreshold == 0 {

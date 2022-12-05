@@ -10,12 +10,14 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/kubeshark/base/pkg/api"
+	"github.com/kubeshark/worker/assemblers"
 	"github.com/kubeshark/worker/server/middlewares"
 	"github.com/kubeshark/worker/server/routes"
 	"github.com/rs/zerolog/log"
 )
 
-func Build() *gin.Engine {
+func Build(opts *assemblers.Opts, streamsMap api.TcpStreamMap) *gin.Engine {
 	ginApp := gin.Default()
 
 	ginApp.GET("/", func(c *gin.Context) {
@@ -24,7 +26,7 @@ func Build() *gin.Engine {
 
 	ginApp.Use(middlewares.CORSMiddleware())
 
-	routes.WebSocketRoutes(ginApp)
+	routes.WebSocketRoutes(ginApp, opts, streamsMap)
 
 	return ginApp
 }

@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcapgo"
 	"github.com/kubeshark/base/pkg/api"
 	"github.com/rs/zerolog/log"
@@ -75,6 +76,7 @@ func (t *tcpStream) setId(id int64) {
 	t.pcap = pcap
 
 	t.pcapWriter = pcapgo.NewWriter(bufio.NewWriter(t.pcap))
+	t.pcapWriter.WriteFileHeader(65535, layers.LinkTypeEthernet)
 }
 
 func (t *tcpStream) close() {

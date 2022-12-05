@@ -26,10 +26,8 @@ var packetSourceManager *source.PacketSourceManager // global
 var mainPacketInputChan chan source.TcpPacketInfo   // global
 var tracerInstance *tracer.Tracer                   // global
 
-func startWorker(opts *assemblers.Opts, outputItems chan *api.OutputChannelItem, extensions []*api.Extension, options *api.TrafficFilteringOptions) {
+func startWorker(opts *assemblers.Opts, streamsMap api.TcpStreamMap, outputItems chan *api.OutputChannelItem, extensions []*api.Extension, options *api.TrafficFilteringOptions) {
 	assemblers.FilteringOptions = options
-
-	streamsMap := assemblers.NewTcpStreamMap()
 
 	if *tls {
 		for _, e := range extensions {
