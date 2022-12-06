@@ -2,11 +2,17 @@ package assemblers
 
 import (
 	"bufio"
+	"fmt"
 	"io"
+	"net"
+	"strconv"
 	"sync"
 	"time"
 
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
 	"github.com/kubeshark/base/pkg/api"
+	"github.com/kubeshark/worker/misc"
 	"github.com/kubeshark/worker/protos"
 	"github.com/rs/zerolog/log"
 )
@@ -101,10 +107,11 @@ func (reader *tcpReader) rewind() {
 func (reader *tcpReader) populateData(msg api.TcpReaderDataMsg) {
 	reader.data = msg.GetBytes()
 
-	err := reader.parent.pcapWriter.WritePacket(msg.GetCaptureInfo(), reader.data)
-	if err != nil {
-		log.Debug().Err(err).Msg("Did an oopsy writing PCAP:")
-	}
+	reader.writePacket(
+		reader.getIP(),
+		reader.getTCP(),
+		gopacket.Payload(reader.data),
+	)
 	reader.captureTime = msg.GetTimestamp()
 }
 
@@ -184,4 +191,64 @@ func (reader *tcpReader) GetEmitter() api.Emitter {
 
 func (reader *tcpReader) GetIsClosed() bool {
 	return reader.isClosed
+}
+
+func (reader *tcpReader) writePacket(layers ...gopacket.SerializableLayer) {
+	buf := gopacket.NewSerializeBuffer()
+	opts := gopacket.SerializeOptions{FixLengths: true}
+	err := gopacket.SerializeLayers(buf, opts, layers...)
+	if err != nil {
+		log.Error().Err(err).Msg("Did an oopsy serializing packet:")
+	}
+	ci := gopacket.CaptureInfo{
+		Timestamp:      time.Now(),
+		CaptureLength:  len(buf.Bytes()),
+		Length:         len(buf.Bytes()),
+		InterfaceIndex: 0,
+	}
+	fmt.Printf("len(buf.Bytes()): %v\n", len(buf.Bytes()))
+	err = reader.parent.pcapWriter.WritePacket(ci, buf.Bytes())
+	if err != nil {
+		log.Error().Err(err).Msg("Did an oopsy writing PCAP:")
+	}
+}
+
+func (reader *tcpReader) getIP() gopacket.SerializableLayer {
+	srcIP, _, err := net.ParseCIDR(reader.tcpID.SrcIP + "/24")
+	if err != nil {
+		panic(err)
+	}
+	dstIP, _, err := net.ParseCIDR(reader.tcpID.DstIP + "/24")
+	if err != nil {
+		panic(err)
+	}
+	res := &layers.IPv4{
+		Version:  4,
+		TTL:      64,
+		SrcIP:    srcIP,
+		DstIP:    dstIP,
+		Protocol: layers.IPProtocolTCP,
+	}
+	return res
+}
+
+func (reader *tcpReader) getTCP() *layers.TCP {
+	srcPort, err := strconv.ParseUint(reader.tcpID.SrcPort, 10, 64)
+	if err != nil {
+		panic(err)
+	}
+	dstPort, err := strconv.ParseUint(reader.tcpID.DstPort, 10, 64)
+	if err != nil {
+		panic(err)
+	}
+	return &layers.TCP{
+		Window:  uint16(misc.Snaplen - 1),
+		SrcPort: layers.TCPPort(srcPort),
+		DstPort: layers.TCPPort(dstPort),
+		SYN:     true,
+		PSH:     false,
+		ACK:     true,
+		Seq:     1,
+		Ack:     1,
+	}
 }

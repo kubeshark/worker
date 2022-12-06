@@ -13,9 +13,6 @@ type tcpReaderDataMsg struct {
 }
 
 func NewTcpReaderDataMsg(data []byte, ci gopacket.CaptureInfo) api.TcpReaderDataMsg {
-	length := len(data)
-	ci.Length = length
-	ci.CaptureLength = length
 	return &tcpReaderDataMsg{data, ci}
 }
 

@@ -77,7 +77,7 @@ func (t *tcpStream) setId(id int64) {
 	t.pcap = pcap
 
 	t.pcapWriter = pcapgo.NewWriter(bufio.NewWriter(t.pcap))
-	t.pcapWriter.WriteFileHeader(uint32(misc.Snaplen), layers.LinkTypeLinuxSLL)
+	t.pcapWriter.WriteFileHeader(uint32(misc.Snaplen), layers.LinkTypeIPv4)
 }
 
 func (t *tcpStream) close() {
@@ -96,10 +96,12 @@ func (t *tcpStream) close() {
 	t.callbacks.tcpStreamClosed(t)
 
 	t.pcap.Close()
-	if !t.isEmittable() {
-		log.Info().Str("file", t.pcap.Name()).Msg("Removing PCAP:")
-		os.Remove(t.pcap.Name())
-	}
+	// if !t.isEmittable() {
+	// 	log.Info().Str("file", t.pcap.Name()).Msg("Removing PCAP:")
+	// 	os.Remove(t.pcap.Name())
+	// } else {
+	// 	os.Rename(t.pcap.Name(), fmt.Sprintf("data/tcp_stream_%09d.pcap", t.id))
+	// }
 }
 
 func (t *tcpStream) addCounterPair(counterPair *api.CounterPair) {
