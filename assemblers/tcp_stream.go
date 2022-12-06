@@ -68,16 +68,19 @@ func (t *tcpStream) getId() int64 {
 
 func (t *tcpStream) setId(id int64) {
 	t.id = id
-	log.Info().Int("id", int(t.id)).Msg("New TCP stream:")
 
-	pcap, err := os.OpenFile(fmt.Sprintf("data/tcp_stream_%09d.pcap", id), os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		log.Error().Err(err).Msg("Couldn't create PCAP:")
+	if t.GetIsIdentifyMode() {
+		log.Info().Int("id", int(t.id)).Msg("New TCP stream:")
+
+		pcap, err := os.OpenFile(fmt.Sprintf("data/tcp_stream_%09d.pcap.tmp", id), os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			log.Error().Err(err).Msg("Couldn't create PCAP:")
+		}
+		t.pcap = pcap
+
+		t.pcapWriter = pcapgo.NewWriter(bufio.NewWriter(t.pcap))
+		t.pcapWriter.WriteFileHeader(uint32(misc.Snaplen), layers.LinkTypeIPv4)
 	}
-	t.pcap = pcap
-
-	t.pcapWriter = pcapgo.NewWriter(bufio.NewWriter(t.pcap))
-	t.pcapWriter.WriteFileHeader(uint32(misc.Snaplen), layers.LinkTypeIPv4)
 }
 
 func (t *tcpStream) close() {
@@ -94,14 +97,6 @@ func (t *tcpStream) close() {
 	t.client.close()
 	t.server.close()
 	t.callbacks.tcpStreamClosed(t)
-
-	t.pcap.Close()
-	// if !t.isEmittable() {
-	// 	log.Info().Str("file", t.pcap.Name()).Msg("Removing PCAP:")
-	// 	os.Remove(t.pcap.Name())
-	// } else {
-	// 	os.Rename(t.pcap.Name(), fmt.Sprintf("data/tcp_stream_%09d.pcap", t.id))
-	// }
 }
 
 func (t *tcpStream) addCounterPair(counterPair *api.CounterPair) {

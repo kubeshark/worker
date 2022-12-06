@@ -2,7 +2,6 @@ package routes
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"os"
 
@@ -67,7 +66,6 @@ func websocketHandler(c *gin.Context, opts *misc.Opts, streamsMap api.TcpStreamM
 			if !ok {
 				break
 			}
-			fmt.Printf("packetInfo: %v\n", packetInfo)
 			assembler.ProcessPacket(packetInfo, false)
 		}
 	}

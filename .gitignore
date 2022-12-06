@@ -31,6 +31,7 @@ worker
 
 # PCAP files
 *.pcap
+*.tmp
 
 # Python scripts for testing
 *.py

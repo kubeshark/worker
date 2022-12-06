@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -106,12 +107,6 @@ func (reader *tcpReader) rewind() {
 
 func (reader *tcpReader) populateData(msg api.TcpReaderDataMsg) {
 	reader.data = msg.GetBytes()
-
-	reader.writePacket(
-		reader.getIP(),
-		reader.getTCP(),
-		gopacket.Payload(reader.data),
-	)
 	reader.captureTime = msg.GetTimestamp()
 }
 
@@ -137,6 +132,15 @@ func (reader *tcpReader) Read(p []byte) (int, error) {
 		if msg != nil {
 			reader.populateData(msg)
 
+			if reader.parent.GetIsIdentifyMode() {
+				log.Debug().Int("id", int(reader.parent.id)).Msg("Writing packet:")
+				reader.writePacket(
+					reader.getIP(),
+					reader.getTCP(),
+					gopacket.Payload(reader.data),
+				)
+			}
+
 			if !reader.isProtocolIdentified() {
 				reader.msgBufferMaster = append(
 					reader.msgBufferMaster,
@@ -147,6 +151,17 @@ func (reader *tcpReader) Read(p []byte) (int, error) {
 	}
 
 	if !ok || len(reader.data) == 0 {
+		if reader.parent.GetIsIdentifyMode() {
+			reader.parent.pcap.Close()
+			if !reader.parent.isEmittable() {
+				log.Debug().Str("file", reader.parent.pcap.Name()).Int("id", int(reader.parent.id)).Msg("Removing PCAP:")
+				os.Remove(reader.parent.pcap.Name())
+			} else {
+				log.Debug().Int("id", int(reader.parent.id)).Msg("Finalizing PCAP:")
+				os.Rename(reader.parent.pcap.Name(), fmt.Sprintf("data/tcp_stream_%09d.pcap", reader.parent.id))
+			}
+		}
+
 		return 0, io.EOF
 	}
 
@@ -206,7 +221,7 @@ func (reader *tcpReader) writePacket(layers ...gopacket.SerializableLayer) {
 		Length:         len(buf.Bytes()),
 		InterfaceIndex: 0,
 	}
-	fmt.Printf("len(buf.Bytes()): %v\n", len(buf.Bytes()))
+
 	err = reader.parent.pcapWriter.WritePacket(ci, buf.Bytes())
 	if err != nil {
 		log.Error().Err(err).Msg("Did an oopsy writing PCAP:")
