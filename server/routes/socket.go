@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/kubeshark/base/pkg/api"
 	"github.com/kubeshark/worker/assemblers"
+	"github.com/kubeshark/worker/misc"
 	"github.com/kubeshark/worker/source"
 	"github.com/rs/zerolog/log"
 )
@@ -25,13 +26,13 @@ func init() {
 	websocketUpgrader.CheckOrigin = func(r *http.Request) bool { return true } // like cors for web socket
 }
 
-func WebSocketRoutes(app *gin.Engine, opts *assemblers.Opts, streamsMap api.TcpStreamMap) {
+func WebSocketRoutes(app *gin.Engine, opts *misc.Opts, streamsMap api.TcpStreamMap) {
 	app.GET("/ws", func(c *gin.Context) {
 		websocketHandler(c, opts, streamsMap)
 	})
 }
 
-func websocketHandler(c *gin.Context, opts *assemblers.Opts, streamsMap api.TcpStreamMap) {
+func websocketHandler(c *gin.Context, opts *misc.Opts, streamsMap api.TcpStreamMap) {
 	ws, err := websocketUpgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to set WebSocket upgrade:")

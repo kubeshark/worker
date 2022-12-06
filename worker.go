@@ -12,6 +12,7 @@ import (
 	"github.com/kubeshark/base/pkg/api"
 	"github.com/kubeshark/worker/assemblers"
 	"github.com/kubeshark/worker/diagnose"
+	"github.com/kubeshark/worker/misc"
 	"github.com/kubeshark/worker/source"
 	"github.com/kubeshark/worker/tracer"
 	"github.com/rs/zerolog/log"
@@ -26,8 +27,8 @@ var packetSourceManager *source.PacketSourceManager // global
 var mainPacketInputChan chan source.TcpPacketInfo   // global
 var tracerInstance *tracer.Tracer                   // global
 
-func startWorker(opts *assemblers.Opts, streamsMap api.TcpStreamMap, outputItems chan *api.OutputChannelItem, extensions []*api.Extension, options *api.TrafficFilteringOptions) {
-	assemblers.FilteringOptions = options
+func startWorker(opts *misc.Opts, streamsMap api.TcpStreamMap, outputItems chan *api.OutputChannelItem, extensions []*api.Extension, options *api.TrafficFilteringOptions) {
+	misc.FilteringOptions = options
 
 	if *tls {
 		for _, e := range extensions {
@@ -57,7 +58,7 @@ func startWorker(opts *assemblers.Opts, streamsMap api.TcpStreamMap, outputItems
 func UpdateTargets(newTargets []v1.Pod) {
 	success := true
 
-	assemblers.TargettedPods = newTargets
+	misc.TargettedPods = newTargets
 
 	packetSourceManager.UpdatePods(newTargets, mainPacketInputChan)
 
@@ -73,7 +74,7 @@ func UpdateTargets(newTargets []v1.Pod) {
 
 func printNewTargets(success bool) {
 	printStr := ""
-	for _, pod := range assemblers.TargettedPods {
+	for _, pod := range misc.TargettedPods {
 		printStr += fmt.Sprintf("%s (%s), ", pod.Status.PodIP, pod.Name)
 	}
 	printStr = strings.TrimRight(printStr, ", ")
@@ -162,11 +163,11 @@ func initializePacketSources() error {
 	}
 
 	var err error
-	packetSourceManager, err = source.NewPacketSourceManager(*procfs, *iface, *servicemesh, assemblers.TargettedPods, *packetCapture, mainPacketInputChan)
+	packetSourceManager, err = source.NewPacketSourceManager(*procfs, *iface, *servicemesh, misc.TargettedPods, *packetCapture, mainPacketInputChan)
 	return err
 }
 
-func initializeWorker(opts *assemblers.Opts, outputItems chan *api.OutputChannelItem, streamsMap api.TcpStreamMap) (*assemblers.TcpAssembler, error) {
+func initializeWorker(opts *misc.Opts, outputItems chan *api.OutputChannelItem, streamsMap api.TcpStreamMap) (*assemblers.TcpAssembler, error) {
 	diagnose.InitializeErrorsMap(*debug, *verbose, *quiet)
 	diagnose.InitializeWorkerInternalStats()
 
@@ -227,7 +228,7 @@ func startTracer(extension *api.Extension, outputItems chan *api.OutputChannelIt
 		return nil
 	}
 
-	if err := tracer.UpdateTargets(&tls, &assemblers.TargettedPods, *procfs); err != nil {
+	if err := tracer.UpdateTargets(&tls, &misc.TargettedPods, *procfs); err != nil {
 		tracer.LogError(err)
 		return nil
 	}

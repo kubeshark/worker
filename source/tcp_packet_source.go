@@ -9,6 +9,7 @@ import (
 	"github.com/google/gopacket/layers"
 	"github.com/kubeshark/base/pkg/api"
 	"github.com/kubeshark/worker/diagnose"
+	"github.com/kubeshark/worker/misc"
 	"github.com/rs/zerolog/log"
 )
 
@@ -43,7 +44,6 @@ func NewTcpPacketSource(name, filename string, interfaceName string, packetCaptu
 		Origin:    origin,
 	}
 
-	snapLength := 65536
 	targetSizeMb := 8
 	promisc := true
 	tstype := ""
@@ -54,7 +54,7 @@ func NewTcpPacketSource(name, filename string, interfaceName string, packetCaptu
 		result.Handle, err = newAfpacketHandle(
 			interfaceName,
 			targetSizeMb,
-			snapLength,
+			misc.Snaplen,
 		)
 		if err != nil {
 			return nil, err
@@ -64,7 +64,7 @@ func NewTcpPacketSource(name, filename string, interfaceName string, packetCaptu
 		result.Handle, err = newPcapHandle(
 			filename,
 			interfaceName,
-			snapLength,
+			misc.Snaplen,
 			promisc,
 			tstype,
 		)

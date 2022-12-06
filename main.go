@@ -15,6 +15,7 @@ import (
 	"github.com/kubeshark/base/pkg/api"
 	"github.com/kubeshark/base/pkg/models"
 	"github.com/kubeshark/worker/assemblers"
+	"github.com/kubeshark/worker/misc"
 	"github.com/kubeshark/worker/protos"
 	"github.com/kubeshark/worker/server"
 	"github.com/rs/zerolog"
@@ -72,7 +73,7 @@ func run() {
 	log.Info().Msg("Starting worker...")
 
 	hostMode := os.Getenv(HostModeEnvVar) == "1"
-	opts := &assemblers.Opts{
+	opts := &misc.Opts{
 		HostMode: hostMode,
 	}
 	streamsMap := assemblers.NewTcpStreamMap()

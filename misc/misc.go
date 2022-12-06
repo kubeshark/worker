@@ -1,4 +1,4 @@
-package assemblers
+package misc
 
 import (
 	"time"
@@ -16,3 +16,5 @@ type Opts struct {
 
 var FilteringOptions *api.TrafficFilteringOptions // global
 var TargettedPods []v1.Pod                        // global
+
+var Snaplen int = 65536

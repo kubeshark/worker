@@ -11,13 +11,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/kubeshark/base/pkg/api"
-	"github.com/kubeshark/worker/assemblers"
+	"github.com/kubeshark/worker/misc"
 	"github.com/kubeshark/worker/server/middlewares"
 	"github.com/kubeshark/worker/server/routes"
 	"github.com/rs/zerolog/log"
 )
 
-func Build(opts *assemblers.Opts, streamsMap api.TcpStreamMap) *gin.Engine {
+func Build(opts *misc.Opts, streamsMap api.TcpStreamMap) *gin.Engine {
 	ginApp := gin.Default()
 
 	ginApp.GET("/", func(c *gin.Context) {

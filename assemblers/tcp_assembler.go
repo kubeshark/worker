@@ -15,6 +15,7 @@ import (
 	"github.com/google/gopacket/reassembly"
 	"github.com/kubeshark/base/pkg/api"
 	"github.com/kubeshark/worker/diagnose"
+	"github.com/kubeshark/worker/misc"
 	"github.com/kubeshark/worker/source"
 	"github.com/rs/zerolog/log"
 )
@@ -60,7 +61,7 @@ func (c *context) GetCaptureInfo() gopacket.CaptureInfo {
 	return c.CaptureInfo
 }
 
-func NewTcpAssembler(identifyMode bool, outputChannel chan *api.OutputChannelItem, streamsMap api.TcpStreamMap, opts *Opts) (*TcpAssembler, error) {
+func NewTcpAssembler(identifyMode bool, outputChannel chan *api.OutputChannelItem, streamsMap api.TcpStreamMap, opts *misc.Opts) (*TcpAssembler, error) {
 	lastClosedConnections, err := lru.NewWithEvict(lastClosedConnectionsMaxItems, func(key interface{}, value interface{}) {})
 
 	if err != nil {

@@ -6,6 +6,7 @@ import (
 
 	"github.com/kubeshark/base/pkg/api"
 	"github.com/kubeshark/worker/diagnose"
+	"github.com/kubeshark/worker/misc"
 	"github.com/kubeshark/worker/protos"
 	v1 "k8s.io/api/core/v1"
 
@@ -26,11 +27,11 @@ type tcpStreamFactory struct {
 	outputChannel    chan *api.OutputChannelItem
 	streamsMap       api.TcpStreamMap
 	ownIps           []string
-	opts             *Opts
+	opts             *misc.Opts
 	streamsCallbacks tcpStreamCallbacks
 }
 
-func NewTcpStreamFactory(identifyMode bool, outputChannel chan *api.OutputChannelItem, streamsMap api.TcpStreamMap, opts *Opts, streamsCallbacks tcpStreamCallbacks) *tcpStreamFactory {
+func NewTcpStreamFactory(identifyMode bool, outputChannel chan *api.OutputChannelItem, streamsMap api.TcpStreamMap, opts *misc.Opts, streamsCallbacks tcpStreamCallbacks) *tcpStreamFactory {
 	var ownIps []string
 
 	if localhostIPs, err := getLocalhostIPs(); err != nil {
@@ -114,8 +115,8 @@ func (factory *tcpStreamFactory) New(net, transport gopacket.Flow, tcpLayer *lay
 		factory.streamsMap.Store(stream.getId(), stream)
 
 		factory.wg.Add(2)
-		go stream.client.run(FilteringOptions, &factory.wg)
-		go stream.server.run(FilteringOptions, &factory.wg)
+		go stream.client.run(misc.FilteringOptions, &factory.wg)
+		go stream.server.run(misc.FilteringOptions, &factory.wg)
 	}
 	return reassemblyStream
 }
@@ -135,13 +136,13 @@ func inArrayPod(pods []v1.Pod, address string) bool {
 
 func (factory *tcpStreamFactory) getStreamProps(srcIP string, srcPort string, dstIP string, dstPort string) *streamProps {
 	if factory.opts.HostMode {
-		if inArrayPod(TargettedPods, fmt.Sprintf("%s:%s", dstIP, dstPort)) {
+		if inArrayPod(misc.TargettedPods, fmt.Sprintf("%s:%s", dstIP, dstPort)) {
 			return &streamProps{isTargetted: true, isOutgoing: false}
-		} else if inArrayPod(TargettedPods, dstIP) {
+		} else if inArrayPod(misc.TargettedPods, dstIP) {
 			return &streamProps{isTargetted: true, isOutgoing: false}
-		} else if inArrayPod(TargettedPods, fmt.Sprintf("%s:%s", srcIP, srcPort)) {
+		} else if inArrayPod(misc.TargettedPods, fmt.Sprintf("%s:%s", srcIP, srcPort)) {
 			return &streamProps{isTargetted: true, isOutgoing: true}
-		} else if inArrayPod(TargettedPods, srcIP) {
+		} else if inArrayPod(misc.TargettedPods, srcIP) {
 			return &streamProps{isTargetted: true, isOutgoing: true}
 		}
 		return &streamProps{isTargetted: false, isOutgoing: false}
