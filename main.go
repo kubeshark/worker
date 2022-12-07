@@ -15,6 +15,7 @@ import (
 	"github.com/kubeshark/base/pkg/api"
 	"github.com/kubeshark/base/pkg/models"
 	"github.com/kubeshark/worker/assemblers"
+	"github.com/kubeshark/worker/kubernetes/resolver"
 	"github.com/kubeshark/worker/misc"
 	"github.com/kubeshark/worker/protos"
 	"github.com/kubeshark/worker/server"
@@ -71,6 +72,8 @@ func main() {
 
 func run() {
 	log.Info().Msg("Starting worker...")
+
+	resolver.StartResolving("")
 
 	hostMode := os.Getenv(HostModeEnvVar) == "1"
 	opts := &misc.Opts{
