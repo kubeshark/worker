@@ -72,7 +72,7 @@ func (t *tcpStream) setId(id int64) {
 	if t.GetIsIdentifyMode() {
 		log.Info().Int("id", int(t.id)).Msg("New TCP stream:")
 
-		pcap, err := os.OpenFile(fmt.Sprintf("data/tcp_stream_%09d.pcap.tmp", id), os.O_CREATE|os.O_WRONLY, 0644)
+		pcap, err := os.OpenFile(fmt.Sprintf("data/tcp_stream_%09d.pcaptmp", id), os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			log.Error().Err(err).Msg("Couldn't create PCAP:")
 		}

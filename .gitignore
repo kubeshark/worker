@@ -30,8 +30,7 @@ go.work
 worker
 
 # PCAP files
-*.pcap
-*.tmp
+*.pcap*
 
 # Python scripts for testing
 *.py
