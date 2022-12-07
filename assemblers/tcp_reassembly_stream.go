@@ -3,9 +3,9 @@ package assemblers
 import (
 	"encoding/binary"
 
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers" // pulls in all layers decoders
-	"github.com/google/gopacket/reassembly"
+	"github.com/kubeshark/gopacket"
+	"github.com/kubeshark/gopacket/layers" // pulls in all layers decoders
+	"github.com/kubeshark/gopacket/reassembly"
 	"github.com/kubeshark/worker/diagnose"
 )
 

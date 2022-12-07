@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/ip4defrag"
-	"github.com/google/gopacket/layers"
 	"github.com/kubeshark/base/pkg/api"
+	"github.com/kubeshark/gopacket"
+	"github.com/kubeshark/gopacket/ip4defrag"
+	"github.com/kubeshark/gopacket/layers"
 	"github.com/kubeshark/worker/diagnose"
 	"github.com/kubeshark/worker/misc"
 	"github.com/rs/zerolog/log"

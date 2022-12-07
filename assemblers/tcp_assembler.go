@@ -10,10 +10,10 @@ import (
 
 	lru "github.com/hashicorp/golang-lru"
 
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
-	"github.com/google/gopacket/reassembly"
 	"github.com/kubeshark/base/pkg/api"
+	"github.com/kubeshark/gopacket"
+	"github.com/kubeshark/gopacket/layers"
+	"github.com/kubeshark/gopacket/reassembly"
 	"github.com/kubeshark/worker/diagnose"
 	"github.com/kubeshark/worker/misc"
 	"github.com/kubeshark/worker/source"

@@ -3,8 +3,8 @@ package assemblers
 import (
 	"time"
 
-	"github.com/google/gopacket"
 	"github.com/kubeshark/base/pkg/api"
+	"github.com/kubeshark/gopacket"
 )
 
 type tcpReaderDataMsg struct {

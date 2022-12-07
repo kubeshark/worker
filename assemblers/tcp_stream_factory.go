@@ -10,9 +10,9 @@ import (
 	"github.com/kubeshark/worker/protos"
 	v1 "k8s.io/api/core/v1"
 
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers" // pulls in all layers decoders
-	"github.com/google/gopacket/reassembly"
+	"github.com/kubeshark/gopacket"
+	"github.com/kubeshark/gopacket/layers" // pulls in all layers decoders
+	"github.com/kubeshark/gopacket/reassembly"
 	"github.com/rs/zerolog/log"
 )
 

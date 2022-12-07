@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/google/gopacket/examples/util"
+	"github.com/kubeshark/gopacket/examples/util"
 	"github.com/rs/zerolog/log"
 )
 

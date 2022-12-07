@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/gopacket/layers"
-	"github.com/google/gopacket/pcapgo"
 	"github.com/kubeshark/base/pkg/api"
+	"github.com/kubeshark/gopacket/layers"
+	"github.com/kubeshark/gopacket/pcapgo"
 	"github.com/kubeshark/worker/misc"
 	"github.com/rs/zerolog/log"
 )

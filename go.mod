@@ -7,11 +7,11 @@ require (
 	github.com/cilium/ebpf v0.9.0
 	github.com/gin-gonic/gin v1.8.1
 	github.com/go-errors/errors v1.4.2
-	github.com/google/gopacket v1.1.19
 	github.com/gorilla/websocket v1.5.0
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/knightsc/gapstone v0.0.0-20191231144527-6fa5afaf11a9
 	github.com/kubeshark/base v0.1.4
+	github.com/kubeshark/gopacket v1.1.20
 	github.com/moby/moby v20.10.17+incompatible
 	github.com/rs/zerolog v1.28.0
 	github.com/shirou/gopsutil v3.21.11+incompatible
@@ -68,5 +68,3 @@ require (
 )
 
 replace github.com/kubeshark/base v0.1.4 => /home/mertyildiran/Documents/kubeshark/base
-
-replace github.com/google/gopacket v1.1.19 => /home/mertyildiran/Downloads/gopacket
