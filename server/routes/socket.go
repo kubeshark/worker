@@ -65,7 +65,7 @@ func websocketHandler(c *gin.Context, opts *misc.Opts) {
 		}
 		go s.ReadPackets(packets)
 
-		assembler, err := assemblers.NewTcpAssembler(false, outputChannel, streamsMap, opts)
+		assembler, err := assemblers.NewTcpAssembler(pcap.Name(), false, outputChannel, streamsMap, opts)
 		if err != nil {
 			log.Error().Err(err).Str("pcap", pcap.Name()).Msg("Failed creating TCP assembler:")
 			continue
@@ -97,7 +97,10 @@ func writeChannelToSocket(outputChannel <-chan *api.OutputChannelItem, ws *webso
 			break
 		}
 
-		summary, err := json.Marshal(summarizeItem(finalItem))
+		baseEntry := summarizeItem(finalItem)
+		baseEntry.Id = item.Id
+
+		summary, err := json.Marshal(baseEntry)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed marshalling summary:")
 			break

@@ -26,6 +26,7 @@ type tcpStreamCallbacks interface {
  */
 type tcpStream struct {
 	id             int64
+	idLong         string
 	identifyMode   bool
 	emittable      bool
 	isClosed       bool
@@ -45,9 +46,10 @@ type tcpStream struct {
 	sync.Mutex
 }
 
-func NewTcpStream(identifyMode bool, isTargetted bool, streamsMap api.TcpStreamMap, capture api.Capture,
+func NewTcpStream(id string, identifyMode bool, isTargetted bool, streamsMap api.TcpStreamMap, capture api.Capture,
 	connectionId connectionId, callbacks tcpStreamCallbacks) *tcpStream {
 	t := &tcpStream{
+		idLong:       id,
 		identifyMode: identifyMode,
 		isTargetted:  isTargetted,
 		streamsMap:   streamsMap,
@@ -127,6 +129,10 @@ func (t *tcpStream) SetProtocol(protocol *api.Protocol) {
 
 func (t *tcpStream) SetAsEmittable() {
 	t.emittable = true
+}
+
+func (t *tcpStream) GetId() string {
+	return t.idLong
 }
 
 func (t *tcpStream) GetIsIdentifyMode() bool {

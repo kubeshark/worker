@@ -181,7 +181,7 @@ func initializeWorker(opts *misc.Opts, outputItems chan *api.OutputChannelItem, 
 	opts.MaxLiveStreams = *maxLiveStreams
 	opts.StaleConnectionTimeout = time.Duration(*staleTimeoutSeconds) * time.Second
 
-	return assemblers.NewTcpAssembler(true, outputItems, streamsMap, opts)
+	return assemblers.NewTcpAssembler("", true, outputItems, streamsMap, opts)
 }
 
 func startAssembler(streamsMap api.TcpStreamMap, assembler *assemblers.TcpAssembler) {
