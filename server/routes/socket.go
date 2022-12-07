@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -43,13 +44,16 @@ func websocketHandler(c *gin.Context, opts *misc.Opts) {
 		log.Error().Err(err).Msg("Failed get the list of PCAP files!")
 	}
 
-	streamsMap := assemblers.NewTcpStreamMap(false)
-
 	outputChannel := make(chan *api.OutputChannelItem)
 	go writeChannelToSocket(outputChannel, ws)
 
 	for _, pcap := range pcapFiles {
+		if strings.HasSuffix(pcap.Name(), "tmp") {
+			continue
+		}
+
 		log.Info().Str("pcap", pcap.Name()).Msg("Reading:")
+		streamsMap := assemblers.NewTcpStreamMap(false)
 		packets := make(chan source.TcpPacketInfo)
 		s, err := source.NewTcpPacketSource(pcap.Name(), "data/"+pcap.Name(), "", "libpcap", api.Pcap)
 		if err != nil {

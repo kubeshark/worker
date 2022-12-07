@@ -167,7 +167,7 @@ func (a *TcpAssembler) processTcpPacket(origin api.Capture, packet gopacket.Pack
 		Origin:      origin,
 	}
 	diagnose.InternalStats.Totalsz += len(tcp.Payload)
-	a.AssembleWithContext(packet.NetworkLayer().NetworkFlow(), tcp, &c)
+	a.AssembleWithContext(packet, tcp, &c)
 }
 
 func (a *TcpAssembler) tcpStreamCreated(stream *tcpStream) {

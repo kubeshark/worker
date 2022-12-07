@@ -68,3 +68,5 @@ require (
 )
 
 replace github.com/kubeshark/base v0.1.4 => /home/mertyildiran/Documents/kubeshark/base
+
+replace github.com/google/gopacket v1.1.19 => /home/mertyildiran/Downloads/gopacket

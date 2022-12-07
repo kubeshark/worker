@@ -79,7 +79,7 @@ func (t *tcpStream) setId(id int64) {
 		t.pcap = pcap
 
 		t.pcapWriter = pcapgo.NewWriter(bufio.NewWriter(t.pcap))
-		t.pcapWriter.WriteFileHeader(uint32(misc.Snaplen), layers.LinkTypeIPv4)
+		t.pcapWriter.WriteFileHeader(uint32(misc.Snaplen), layers.LinkTypeLinuxSLL)
 	}
 }
 

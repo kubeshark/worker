@@ -150,7 +150,21 @@ func (t *tcpReassemblyStream) ReassembledSG(sg reassembly.ScatterGather, ac reas
 	}
 }
 
-func (t *tcpReassemblyStream) ReassemblyComplete(ac reassembly.AssemblerContext) bool {
+func (t *tcpReassemblyStream) ReassemblyComplete(ac reassembly.AssemblerContext, packets []gopacket.Packet) bool {
+	if t.tcpStream.identifyMode {
+		for _, packet := range packets {
+			outgoingPacket := packet.Data()
+
+			info := packet.Metadata().CaptureInfo
+			info.Length = len(outgoingPacket)
+			info.CaptureLength = len(outgoingPacket)
+			// fmt.Printf("info: %+v\n", info)
+			if err := t.tcpStream.pcapWriter.WritePacket(info, outgoingPacket); err != nil {
+				panic(err)
+			}
+		}
+	}
+
 	if t.tcpStream.GetIsTargetted() && !t.tcpStream.GetIsClosed() {
 		t.tcpStream.close()
 	}
