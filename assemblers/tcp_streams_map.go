@@ -49,10 +49,14 @@ func getIdFromPcapFiles() int64 {
 	return id
 }
 
-func NewTcpStreamMap() api.TcpStreamMap {
+func NewTcpStreamMap(cont bool) api.TcpStreamMap {
+	var streamId int64
+	if cont {
+		streamId = getIdFromPcapFiles()
+	}
 	return &tcpStreamMap{
 		streams:  &sync.Map{},
-		streamId: getIdFromPcapFiles(),
+		streamId: streamId,
 	}
 }
 

@@ -75,14 +75,10 @@ func NewTcpPacketSource(name, filename string, interfaceName string, packetCaptu
 	}
 
 	var decoder gopacket.Decoder
-	if filename == "" {
-		var ok bool
-		decoderName := result.Handle.LinkType().String()
-		if decoder, ok = gopacket.DecodersByLayerName[decoderName]; !ok {
-			return nil, fmt.Errorf("no decoder named %v", decoderName)
-		}
-	} else {
-		decoder = gopacket.DecodePayload
+	var ok bool
+	decoderName := result.Handle.LinkType().String()
+	if decoder, ok = gopacket.DecodersByLayerName[decoderName]; !ok {
+		return nil, fmt.Errorf("no decoder named %v", decoderName)
 	}
 
 	result.Handle.SetDecoder(decoder, lazy, true)

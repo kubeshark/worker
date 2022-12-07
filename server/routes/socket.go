@@ -25,13 +25,13 @@ func init() {
 	websocketUpgrader.CheckOrigin = func(r *http.Request) bool { return true } // like cors for web socket
 }
 
-func WebSocketRoutes(app *gin.Engine, opts *misc.Opts, streamsMap api.TcpStreamMap) {
+func WebSocketRoutes(app *gin.Engine, opts *misc.Opts) {
 	app.GET("/ws", func(c *gin.Context) {
-		websocketHandler(c, opts, streamsMap)
+		websocketHandler(c, opts)
 	})
 }
 
-func websocketHandler(c *gin.Context, opts *misc.Opts, streamsMap api.TcpStreamMap) {
+func websocketHandler(c *gin.Context, opts *misc.Opts) {
 	ws, err := websocketUpgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to set WebSocket upgrade:")
@@ -42,6 +42,8 @@ func websocketHandler(c *gin.Context, opts *misc.Opts, streamsMap api.TcpStreamM
 	if err != nil {
 		log.Error().Err(err).Msg("Failed get the list of PCAP files!")
 	}
+
+	streamsMap := assemblers.NewTcpStreamMap(false)
 
 	outputChannel := make(chan *api.OutputChannelItem)
 	go writeChannelToSocket(outputChannel, ws)

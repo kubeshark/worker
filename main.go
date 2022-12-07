@@ -76,14 +76,14 @@ func run() {
 	opts := &misc.Opts{
 		HostMode: hostMode,
 	}
-	streamsMap := assemblers.NewTcpStreamMap()
+	streamsMap := assemblers.NewTcpStreamMap(true)
 
 	filteredOutputItemsChannel := make(chan *api.OutputChannelItem)
 
 	filteringOptions := getTrafficFilteringOptions()
 	startWorker(opts, streamsMap, filteredOutputItemsChannel, protos.Extensions, filteringOptions)
 
-	ginApp := server.Build(opts, streamsMap)
+	ginApp := server.Build(opts)
 	server.Start(ginApp, *port)
 }
 
