@@ -26,6 +26,7 @@ func Build(opts *misc.Opts) *gin.Engine {
 	ginApp.Use(middlewares.CORSMiddleware())
 
 	routes.WebSocketRoutes(ginApp, opts)
+	routes.ItemRoutes(ginApp, opts)
 
 	return ginApp
 }
