@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/kubeshark/base/pkg/api"
@@ -50,33 +52,75 @@ func websocketHandler(c *gin.Context, opts *misc.Opts) {
 	outputChannel := make(chan *api.OutputChannelItem)
 	go writeChannelToSocket(outputChannel, ws)
 
-	for _, pcap := range pcapFiles {
-		if strings.HasSuffix(pcap.Name(), "tmp") {
-			continue
+	go func() {
+		for _, pcap := range pcapFiles {
+			handlePcapFile(pcap.Name(), outputChannel, opts)
 		}
+	}()
 
-		log.Info().Str("pcap", pcap.Name()).Msg("Reading:")
-		streamsMap := assemblers.NewTcpStreamMap(false)
-		packets := make(chan source.TcpPacketInfo)
-		s, err := source.NewTcpPacketSource(pcap.Name(), "data/"+pcap.Name(), "", "libpcap", api.Pcap)
-		if err != nil {
-			log.Error().Err(err).Str("pcap", pcap.Name()).Msg("Failed to create TCP packet source!")
-			continue
-		}
-		go s.ReadPackets(packets)
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		log.Fatal().Err(err).Msg("NewWatcher failed:")
+	}
+	defer watcher.Close()
 
-		assembler, err := assemblers.NewTcpAssembler(pcap.Name(), false, outputChannel, streamsMap, opts)
-		if err != nil {
-			log.Error().Err(err).Str("pcap", pcap.Name()).Msg("Failed creating TCP assembler:")
-			continue
-		}
+	done := make(chan bool)
+	go func() {
+		defer close(done)
+
 		for {
-			packetInfo, ok := <-packets
-			if !ok {
-				break
+			select {
+			case event, ok := <-watcher.Events:
+				if !ok {
+					return
+				}
+				if event.Op&fsnotify.Remove == fsnotify.Remove {
+					_, filename := filepath.Split(event.Name)
+					handlePcapFile(filename, outputChannel, opts)
+				}
+			case err, ok := <-watcher.Errors:
+				if !ok {
+					return
+				}
+				log.Fatal().Err(err).Msg("Watcher error:")
 			}
-			assembler.ProcessPacket(packetInfo, false)
 		}
+
+	}()
+
+	err = watcher.Add("./data")
+	if err != nil {
+		log.Fatal().Err(err).Msg("Add failed:")
+	}
+	<-done
+}
+
+func handlePcapFile(filename string, outputChannel chan *api.OutputChannelItem, opts *misc.Opts) {
+	if strings.HasSuffix(filename, "tmp") {
+		return
+	}
+
+	log.Info().Str("pcap", filename).Msg("Reading:")
+	streamsMap := assemblers.NewTcpStreamMap(false)
+	packets := make(chan source.TcpPacketInfo)
+	s, err := source.NewTcpPacketSource(filename, "data/"+filename, "", "libpcap", api.Pcap)
+	if err != nil {
+		log.Error().Err(err).Str("pcap", filename).Msg("Failed to create TCP packet source!")
+		return
+	}
+	go s.ReadPackets(packets)
+
+	assembler, err := assemblers.NewTcpAssembler(filename, false, outputChannel, streamsMap, opts)
+	if err != nil {
+		log.Error().Err(err).Str("pcap", filename).Msg("Failed creating TCP assembler:")
+		return
+	}
+	for {
+		packetInfo, ok := <-packets
+		if !ok {
+			break
+		}
+		assembler.ProcessPacket(packetInfo, false)
 	}
 }
 
