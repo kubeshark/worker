@@ -7,6 +7,7 @@ import (
 	"github.com/kubeshark/gopacket/layers" // pulls in all layers decoders
 	"github.com/kubeshark/gopacket/reassembly"
 	"github.com/kubeshark/worker/diagnose"
+	"github.com/rs/zerolog/log"
 )
 
 type tcpReassemblyStream struct {
@@ -158,9 +159,8 @@ func (t *tcpReassemblyStream) ReassemblyComplete(ac reassembly.AssemblerContext,
 			info := packet.Metadata().CaptureInfo
 			info.Length = len(outgoingPacket)
 			info.CaptureLength = len(outgoingPacket)
-			// fmt.Printf("info: %+v\n", info)
 			if err := t.tcpStream.pcapWriter.WritePacket(info, outgoingPacket); err != nil {
-				panic(err)
+				log.Error().Str("pcap", t.tcpStream.pcap.Name()).Err(err).Msg("Couldn't write the packet:")
 			}
 		}
 	}
