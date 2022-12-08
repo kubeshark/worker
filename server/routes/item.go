@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/kubeshark/base/pkg/api"
+	"github.com/kubeshark/base/pkg/extensions"
 	"github.com/kubeshark/base/pkg/languages/kfl"
 	"github.com/kubeshark/worker/assemblers"
 	"github.com/kubeshark/worker/misc"
@@ -79,6 +80,9 @@ func getItem(c *gin.Context, opts *misc.Opts) {
 		entry := itemToEntry(finalItem)
 		entry.Id = id
 
+		protocol := extensions.ProtocolsMap[entry.Protocol.ToString()]
+		extension := extensions.ExtensionsMap[entry.Protocol.Name]
+
 		var entryMarshaled []byte
 		entryMarshaled, err = json.Marshal(entry)
 		if err != nil {
@@ -105,11 +109,26 @@ func getItem(c *gin.Context, opts *misc.Opts) {
 		var alteredEntry *api.Entry
 		err = json.Unmarshal([]byte(record), &alteredEntry)
 		if err != nil {
-			log.Error().Err(err).Msg("Failed unmarshalling altered item:")
+			log.Error().Err(err).Msg("Failed unmarshalling altered entry:")
 			break
 		}
 
-		c.JSON(http.StatusOK, alteredEntry)
+		base := extension.Dissector.Summarize(alteredEntry)
+		var representation []byte
+		representation, err = extension.Dissector.Represent(alteredEntry.Request, alteredEntry.Response)
+		if err != nil {
+			log.Error().Err(err).Msg("Failed representing altered entry:")
+			break
+		}
+
+		entryWrapped := &api.EntryWrapper{
+			Protocol:       *protocol,
+			Representation: string(representation),
+			Data:           entry,
+			Base:           base,
+		}
+
+		c.JSON(http.StatusOK, entryWrapped)
 		return
 	}
 
