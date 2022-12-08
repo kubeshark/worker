@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/kubeshark/base/pkg/api"
+	"github.com/kubeshark/base/pkg/languages/kfl"
 	"github.com/kubeshark/worker/assemblers"
 	"github.com/kubeshark/worker/misc"
 	"github.com/kubeshark/worker/source"
@@ -29,6 +30,7 @@ func handleError(c *gin.Context, err error) {
 
 func getItem(c *gin.Context, opts *misc.Opts) {
 	id := c.Param("id")
+	query := c.Query("q")
 
 	outputChannel := make(chan *api.OutputChannelItem)
 
@@ -60,10 +62,10 @@ func getItem(c *gin.Context, opts *misc.Opts) {
 
 	for item := range outputChannel {
 		// TODO: The previously bad design forces us to Marshal and Unmarshal
-		data, err := json.Marshal(item)
+		var data []byte
+		data, err = json.Marshal(item)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed marshalling item:")
-			handleError(c, err)
 			break
 		}
 		var finalItem *api.OutputChannelItem
@@ -77,7 +79,39 @@ func getItem(c *gin.Context, opts *misc.Opts) {
 		entry := itemToEntry(finalItem)
 		entry.Id = id
 
-		c.JSON(http.StatusOK, entry)
-		break
+		var entryMarshaled []byte
+		entryMarshaled, err = json.Marshal(entry)
+		if err != nil {
+			log.Error().Err(err).Msg("Failed marshalling entry:")
+			break
+		}
+
+		var truth bool
+		var record string
+		truth, record, err = kfl.Apply(entryMarshaled, query)
+		if err != nil {
+			log.Error().Err(err).Msg("Failed applying query:")
+			break
+		}
+
+		if !truth {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"query":   query,
+				"message": "Query evaluates to false for this item.",
+			})
+			return
+		}
+
+		var alteredEntry *api.Entry
+		err = json.Unmarshal([]byte(record), &alteredEntry)
+		if err != nil {
+			log.Error().Err(err).Msg("Failed unmarshalling altered item:")
+			break
+		}
+
+		c.JSON(http.StatusOK, alteredEntry)
+		return
 	}
+
+	handleError(c, err)
 }
