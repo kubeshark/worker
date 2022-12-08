@@ -133,26 +133,26 @@ func writeChannelToSocket(outputChannel <-chan *api.OutputChannelItem, ws *webso
 		data, err := json.Marshal(item)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed marshalling item:")
-			break
+			continue
 		}
 		var finalItem *api.OutputChannelItem
 		err = json.Unmarshal(data, &finalItem)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed unmarshalling item:")
-			break
+			continue
 		}
 
 		entry := itemToEntry(finalItem)
 		entryMarshaled, err := json.Marshal(entry)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed marshalling entry:")
-			break
+			continue
 		}
 
 		truth, record, err := kfl.Apply(entryMarshaled, query)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed applying query:")
-			break
+			continue
 		}
 
 		if !truth {
@@ -163,7 +163,7 @@ func writeChannelToSocket(outputChannel <-chan *api.OutputChannelItem, ws *webso
 		err = json.Unmarshal([]byte(record), &alteredEntry)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed unmarshalling altered item:")
-			break
+			continue
 		}
 
 		baseEntry := summarizeEntry(alteredEntry)
@@ -172,13 +172,13 @@ func writeChannelToSocket(outputChannel <-chan *api.OutputChannelItem, ws *webso
 		summary, err := json.Marshal(baseEntry)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed marshalling summary:")
-			break
+			continue
 		}
 
 		err = ws.WriteMessage(1, summary)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to set write message to WebSocket:")
-			break
+			continue
 		}
 	}
 }
