@@ -13,11 +13,11 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/kubeshark/base/pkg/api"
+	"github.com/kubeshark/base/pkg/extensions"
 	"github.com/kubeshark/base/pkg/models"
 	"github.com/kubeshark/worker/assemblers"
 	"github.com/kubeshark/worker/kubernetes/resolver"
 	"github.com/kubeshark/worker/misc"
-	"github.com/kubeshark/worker/protos"
 	"github.com/kubeshark/worker/server"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -59,8 +59,6 @@ func main() {
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	}
 
-	protos.LoadExtensions()
-
 	run()
 
 	signalChan := make(chan os.Signal, 1)
@@ -84,7 +82,7 @@ func run() {
 	filteredOutputItemsChannel := make(chan *api.OutputChannelItem)
 
 	filteringOptions := getTrafficFilteringOptions()
-	startWorker(opts, streamsMap, filteredOutputItemsChannel, protos.Extensions, filteringOptions)
+	startWorker(opts, streamsMap, filteredOutputItemsChannel, extensions.Extensions, filteringOptions)
 
 	ginApp := server.Build(opts)
 	server.Start(ginApp, *port)

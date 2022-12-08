@@ -5,9 +5,9 @@ import (
 	"sync"
 
 	"github.com/kubeshark/base/pkg/api"
+	"github.com/kubeshark/base/pkg/extensions"
 	"github.com/kubeshark/worker/diagnose"
 	"github.com/kubeshark/worker/misc"
-	"github.com/kubeshark/worker/protos"
 	v1 "k8s.io/api/core/v1"
 
 	"github.com/kubeshark/gopacket"
@@ -75,7 +75,7 @@ func (factory *tcpStreamFactory) New(net, transport gopacket.Flow, tcpLayer *lay
 	reassemblyStream := NewTcpReassemblyStream(fmt.Sprintf("%s:%s", net, transport), tcpLayer, fsmOptions, stream)
 	if stream.GetIsTargetted() {
 		stream.setId(factory.streamsMap.NextId())
-		for _, extension := range protos.Extensions {
+		for _, extension := range extensions.Extensions {
 			counterPair := &api.CounterPair{
 				Request:  0,
 				Response: 0,

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/kubeshark/base/pkg/api"
-	"github.com/kubeshark/worker/protos"
+	"github.com/kubeshark/base/pkg/extensions"
 	"github.com/rs/zerolog/log"
 )
 
@@ -53,7 +53,7 @@ func NewTcpReader(ident string, tcpId *api.TcpID, parent *tcpStream, isClient bo
 func (reader *tcpReader) run(options *api.TrafficFilteringOptions, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	for i, extension := range protos.Extensions {
+	for i, extension := range extensions.Extensions {
 		reader.reqResMatcher = reader.parent.reqResMatchers[i]
 		reader.counterPair = reader.parent.counterPairs[i]
 		b := bufio.NewReader(reader)
