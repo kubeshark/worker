@@ -12,10 +12,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/kubeshark/base/pkg/api"
+	"github.com/kubeshark/base/pkg/extensions"
+	"github.com/kubeshark/base/pkg/languages/kfl"
 	"github.com/kubeshark/worker/assemblers"
 	"github.com/kubeshark/worker/kubernetes/resolver"
 	"github.com/kubeshark/worker/misc"
-	"github.com/kubeshark/worker/protos"
 	"github.com/kubeshark/worker/source"
 	"github.com/rs/zerolog/log"
 )
@@ -50,7 +51,7 @@ func websocketHandler(c *gin.Context, opts *misc.Opts) {
 	}
 
 	outputChannel := make(chan *api.OutputChannelItem)
-	go writeChannelToSocket(outputChannel, ws)
+	go writeChannelToSocket(outputChannel, ws, c.Query("q"))
 
 	go func() {
 		for _, pcap := range pcapFiles {
@@ -124,7 +125,7 @@ func handlePcapFile(filename string, outputChannel chan *api.OutputChannelItem, 
 	}
 }
 
-func writeChannelToSocket(outputChannel <-chan *api.OutputChannelItem, ws *websocket.Conn) {
+func writeChannelToSocket(outputChannel <-chan *api.OutputChannelItem, ws *websocket.Conn, query string) {
 	for item := range outputChannel {
 		log.Info().Interface("item", item).Msg("New item:")
 
@@ -141,7 +142,31 @@ func writeChannelToSocket(outputChannel <-chan *api.OutputChannelItem, ws *webso
 			break
 		}
 
-		baseEntry := summarizeItem(finalItem)
+		entry := itemToEntry(finalItem)
+		entryMarshaled, err := json.Marshal(entry)
+		if err != nil {
+			log.Error().Err(err).Msg("Failed marshalling entry:")
+			break
+		}
+
+		truth, record, err := kfl.Apply(entryMarshaled, query)
+		if err != nil {
+			log.Error().Err(err).Msg("Failed applying query:")
+			break
+		}
+
+		if !truth {
+			continue
+		}
+
+		var alteredEntry *api.Entry
+		err = json.Unmarshal([]byte(record), &alteredEntry)
+		if err != nil {
+			log.Error().Err(err).Msg("Failed unmarshalling altered item:")
+			break
+		}
+
+		baseEntry := summarizeEntry(alteredEntry)
 		baseEntry.Id = item.Id
 
 		summary, err := json.Marshal(baseEntry)
@@ -159,7 +184,7 @@ func writeChannelToSocket(outputChannel <-chan *api.OutputChannelItem, ws *webso
 }
 
 func itemToEntry(item *api.OutputChannelItem) *api.Entry {
-	extension := protos.ExtensionsMap[item.Protocol.Name]
+	extension := extensions.ExtensionsMap[item.Protocol.Name]
 
 	resolvedSource, resolvedDestination, namespace := resolveIP(item.ConnectionInfo)
 
@@ -170,10 +195,10 @@ func itemToEntry(item *api.OutputChannelItem) *api.Entry {
 	return extension.Dissector.Analyze(item, resolvedSource, resolvedDestination, namespace)
 }
 
-func summarizeItem(item *api.OutputChannelItem) *api.BaseEntry {
-	extension := protos.ExtensionsMap[item.Protocol.Name]
+func summarizeEntry(entry *api.Entry) *api.BaseEntry {
+	extension := extensions.ExtensionsMap[entry.Protocol.Name]
 
-	return extension.Dissector.Summarize(itemToEntry(item))
+	return extension.Dissector.Summarize(entry)
 }
 
 func resolveIP(connectionInfo *api.ConnectionInfo) (resolvedSource string, resolvedDestination string, namespace string) {
