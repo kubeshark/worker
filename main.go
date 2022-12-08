@@ -1,20 +1,13 @@
 package main
 
 import (
-	"encoding/json"
-	"errors"
 	"flag"
-	"fmt"
-	"net/http"
 	"os"
 	"os/signal"
-	"syscall"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/kubeshark/base/pkg/api"
 	"github.com/kubeshark/base/pkg/extensions"
-	"github.com/kubeshark/base/pkg/models"
 	"github.com/kubeshark/worker/assemblers"
 	"github.com/kubeshark/worker/kubernetes/resolver"
 	"github.com/kubeshark/worker/misc"
@@ -91,64 +84,5 @@ func run() {
 func getTrafficFilteringOptions() *api.TrafficFilteringOptions {
 	return &api.TrafficFilteringOptions{
 		IgnoredUserAgents: []string{},
-	}
-}
-
-func dialSocketWithRetry(socketAddress string, retryAmount int, retryDelay time.Duration) (*websocket.Conn, error) {
-	var lastErr error
-	dialer := &websocket.Dialer{ // we use our own dialer instead of the default due to the default's 45 sec handshake timeout, we occasionally encounter hanging socket handshakes when Worker tries to connect to Hub too soon
-		Proxy:            http.ProxyFromEnvironment,
-		HandshakeTimeout: socketHandshakeTimeout,
-	}
-	for i := 1; i < retryAmount; i++ {
-		socketConnection, _, err := dialer.Dial(socketAddress, nil)
-		if err != nil {
-			lastErr = err
-			if i < retryAmount {
-				log.Warn().Err(err).Str("addr", socketAddress).Msg(fmt.Sprintf("Socket connection attempt is failed! Retrying %d out of %d in %d seconds...", i, retryAmount, retryDelay/time.Second))
-				time.Sleep(retryDelay)
-			}
-		} else {
-			go handleIncomingMessageAsWorker(socketConnection)
-			return socketConnection, nil
-		}
-	}
-	return nil, lastErr
-}
-
-func handleIncomingMessageAsWorker(socketConnection *websocket.Conn) {
-	for {
-		if _, message, err := socketConnection.ReadMessage(); err != nil {
-			log.Error().Err(err).Msg("While reading message from the socket connection!")
-			if errors.Is(err, syscall.EPIPE) {
-				// socket has disconnected, we can safely stop this goroutine
-				return
-			}
-		} else {
-			var socketMessageBase models.WebSocketMessageMetadata
-			if err := json.Unmarshal(message, &socketMessageBase); err != nil {
-				log.Error().Err(err).Msg("Couldn't unmarshal socket message!")
-			} else {
-				switch socketMessageBase.MessageType {
-				case models.WebSocketMessageTypeWorkerConfig:
-					var configMessage *models.WebSocketWorkerConfigMessage
-					if err := json.Unmarshal(message, &configMessage); err != nil {
-						log.Error().Err(err).Str("msg", string(message)).Msg("Received unknown message from the socket connection:")
-					} else {
-						UpdateTargets(configMessage.TargettedPods)
-					}
-				case models.WebSocketMessageTypeUpdateTargettedPods:
-					var targettedPodsMessage models.WebSocketTargettedPodsMessage
-					if err := json.Unmarshal(message, &targettedPodsMessage); err != nil {
-						log.Error().Err(err).Str("msg-type", string(socketMessageBase.MessageType)).Msg("Couldn't unmarshal message of message type:")
-						return
-					}
-					nodeName := os.Getenv(NodeNameEnvVar)
-					UpdateTargets(targettedPodsMessage.NodeToTargettedPodsMap[nodeName])
-				default:
-					log.Error().Str("msg-type", string(socketMessageBase.MessageType)).Msg("Received a socket message type which no handlers are defined for!")
-				}
-			}
-		}
 	}
 }
