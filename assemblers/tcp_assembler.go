@@ -92,9 +92,6 @@ func (a *TcpAssembler) ProcessPackets(packets <-chan source.TcpPacketInfo) {
 			a.periodicClean()
 		}
 	}
-
-	closed := a.FlushAll()
-	log.Debug().Int("closed", closed).Msg("Final flush.")
 }
 
 func (a *TcpAssembler) ProcessPacket(packetInfo source.TcpPacketInfo, dumpPacket bool) {
