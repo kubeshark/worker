@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/fsnotify/fsnotify"
@@ -53,11 +54,9 @@ func websocketHandler(c *gin.Context, opts *misc.Opts) {
 	outputChannel := make(chan *api.OutputChannelItem)
 	go writeChannelToSocket(outputChannel, ws, c.Query("q"))
 
-	go func() {
-		for _, pcap := range pcapFiles {
-			handlePcapFile(pcap.Name(), outputChannel, opts)
-		}
-	}()
+	for _, pcap := range pcapFiles {
+		handlePcapFile(pcap.Name(), outputChannel, opts)
+	}
 
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -75,7 +74,7 @@ func websocketHandler(c *gin.Context, opts *misc.Opts) {
 				if !ok {
 					return
 				}
-				if event.Op&fsnotify.Remove == fsnotify.Remove {
+				if event.Op&fsnotify.Rename == fsnotify.Rename {
 					_, filename := filepath.Split(event.Name)
 					handlePcapFile(filename, outputChannel, opts)
 				}
@@ -97,6 +96,7 @@ func websocketHandler(c *gin.Context, opts *misc.Opts) {
 }
 
 func handlePcapFile(filename string, outputChannel chan *api.OutputChannelItem, opts *misc.Opts) {
+	log.Info().Int("go", runtime.NumGoroutine()).Msg("Number of Goroutines:")
 	if strings.HasSuffix(filename, "tmp") {
 		return
 	}
@@ -127,8 +127,6 @@ func handlePcapFile(filename string, outputChannel chan *api.OutputChannelItem, 
 
 func writeChannelToSocket(outputChannel <-chan *api.OutputChannelItem, ws *websocket.Conn, query string) {
 	for item := range outputChannel {
-		log.Info().Interface("item", item).Msg("New item:")
-
 		// TODO: The previously bad design forces us to Marshal and Unmarshal
 		data, err := json.Marshal(item)
 		if err != nil {
