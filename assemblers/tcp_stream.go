@@ -1,17 +1,10 @@
 package assemblers
 
 import (
-	"bufio"
-	"fmt"
-	"os"
 	"sync"
 	"time"
 
 	"github.com/kubeshark/base/pkg/api"
-	"github.com/kubeshark/gopacket/layers"
-	"github.com/kubeshark/gopacket/pcapgo"
-	"github.com/kubeshark/worker/misc"
-	"github.com/rs/zerolog/log"
 )
 
 /* It's a connection (bidirectional)
@@ -34,8 +27,6 @@ type tcpStream struct {
 	reqResMatchers []api.RequestResponseMatcher
 	createdAt      time.Time
 	streamsMap     api.TcpStreamMap
-	pcap           *os.File
-	pcapWriter     *pcapgo.Writer
 	sync.Mutex
 }
 
@@ -58,19 +49,6 @@ func (t *tcpStream) getId() int64 {
 
 func (t *tcpStream) setId(id int64) {
 	t.id = id
-
-	if t.GetIsIdentifyMode() {
-		log.Info().Int("id", int(t.id)).Msg("New TCP stream:")
-
-		pcap, err := os.OpenFile(fmt.Sprintf("data/tcp_stream_%09d.pcaptmp", id), os.O_CREATE|os.O_WRONLY, 0644)
-		if err != nil {
-			log.Error().Err(err).Msg("Couldn't create PCAP:")
-		}
-		t.pcap = pcap
-
-		t.pcapWriter = pcapgo.NewWriter(bufio.NewWriter(t.pcap))
-		t.pcapWriter.WriteFileHeader(uint32(misc.Snaplen), layers.LinkTypeLinuxSLL)
-	}
 }
 
 func (t *tcpStream) close() {

@@ -63,6 +63,18 @@ func (reader *tcpReader) run(options *api.TrafficFilteringOptions, wg *sync.Wait
 		}
 		reader.rewind()
 	}
+
+	if reader.parent.GetIsIdentifyMode() {
+		reader.parent.identifyMode = false
+		id := fmt.Sprintf("data/tcp_stream_%09d.pcaptmp", reader.parent.id)
+		if !reader.parent.isEmittable() {
+			log.Debug().Str("file", id).Int("id", int(reader.parent.id)).Msg("Removing PCAP:")
+			os.Remove(id)
+		} else {
+			log.Debug().Int("id", int(reader.parent.id)).Msg("Finalizing PCAP:")
+			os.Rename(id, fmt.Sprintf("data/tcp_stream_%09d.pcap", reader.parent.id))
+		}
+	}
 }
 
 func (reader *tcpReader) close() {
@@ -137,18 +149,6 @@ func (reader *tcpReader) Read(p []byte) (int, error) {
 	}
 
 	if !ok || len(reader.data) == 0 {
-		if reader.parent.GetIsIdentifyMode() {
-			reader.parent.identifyMode = false
-			reader.parent.pcap.Close()
-			if !reader.parent.isEmittable() {
-				log.Debug().Str("file", reader.parent.pcap.Name()).Int("id", int(reader.parent.id)).Msg("Removing PCAP:")
-				os.Remove(reader.parent.pcap.Name())
-			} else {
-				log.Debug().Int("id", int(reader.parent.id)).Msg("Finalizing PCAP:")
-				os.Rename(reader.parent.pcap.Name(), fmt.Sprintf("data/tcp_stream_%09d.pcap", reader.parent.id))
-			}
-		}
-
 		return 0, io.EOF
 	}
 

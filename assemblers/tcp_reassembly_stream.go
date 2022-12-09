@@ -2,11 +2,15 @@ package assemblers
 
 import (
 	"encoding/binary"
+	"fmt"
+	"os"
 
 	"github.com/kubeshark/gopacket"
 	"github.com/kubeshark/gopacket/layers" // pulls in all layers decoders
+	"github.com/kubeshark/gopacket/pcapgo"
 	"github.com/kubeshark/gopacket/reassembly"
 	"github.com/kubeshark/worker/diagnose"
+	"github.com/kubeshark/worker/misc"
 	"github.com/rs/zerolog/log"
 )
 
@@ -20,6 +24,7 @@ type tcpReassemblyStream struct {
 	notignorefsmerr bool
 	optcheck        bool
 	checksum        bool
+	packets         []gopacket.Packet
 }
 
 func NewTcpReassemblyStream(ident string, tcp *layers.TCP, fsmOptions reassembly.TCPSimpleFSMOptions, stream *tcpStream) reassembly.Stream {
@@ -151,18 +156,30 @@ func (t *tcpReassemblyStream) ReassembledSG(sg reassembly.ScatterGather, ac reas
 	}
 }
 
-func (t *tcpReassemblyStream) ReassemblyComplete(ac reassembly.AssemblerContext, packets []gopacket.Packet) bool {
-	if t.tcpStream.identifyMode {
-		for _, packet := range packets {
+func (t *tcpReassemblyStream) ReassemblyComplete(ac reassembly.AssemblerContext) bool {
+	if t.tcpStream.GetIsIdentifyMode() {
+		id := fmt.Sprintf("data/tcp_stream_%09d.pcaptmp", t.tcpStream.id)
+		log.Info().Str("id", id).Msg("Dumping TCP stream:")
+
+		pcap, err := os.OpenFile(id, os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			log.Error().Err(err).Msg("Couldn't create PCAP:")
+		}
+
+		pcapWriter := pcapgo.NewWriter(pcap)
+		pcapWriter.WriteFileHeader(uint32(misc.Snaplen), layers.LinkTypeLinuxSLL)
+
+		for _, packet := range t.packets {
 			outgoingPacket := packet.Data()
 
 			info := packet.Metadata().CaptureInfo
 			info.Length = len(outgoingPacket)
 			info.CaptureLength = len(outgoingPacket)
-			if err := t.tcpStream.pcapWriter.WritePacket(info, outgoingPacket); err != nil {
-				log.Error().Str("pcap", t.tcpStream.pcap.Name()).Err(err).Msg("Couldn't write the packet:")
+			if err := pcapWriter.WritePacket(info, outgoingPacket); err != nil {
+				log.Error().Str("pcap", pcap.Name()).Err(err).Msg("Couldn't write the packet:")
 			}
 		}
+		pcap.Close()
 	}
 
 	if t.tcpStream.GetIsTargetted() && !t.tcpStream.GetIsClosed() {
@@ -170,4 +187,8 @@ func (t *tcpReassemblyStream) ReassemblyComplete(ac reassembly.AssemblerContext,
 	}
 
 	return true
+}
+
+func (t *tcpReassemblyStream) ReceivePacket(packet gopacket.Packet) {
+	t.packets = append(t.packets, packet)
 }
