@@ -74,7 +74,7 @@ func websocketHandler(c *gin.Context, opts *misc.Opts) {
 				if !ok {
 					return
 				}
-				if event.Op&fsnotify.Rename == fsnotify.Rename {
+				if event.Op&fsnotify.Rename == fsnotify.Rename || event.Op&fsnotify.Create == fsnotify.Create {
 					_, filename := filepath.Split(event.Name)
 					handlePcapFile(filename, outputChannel, opts)
 				}
