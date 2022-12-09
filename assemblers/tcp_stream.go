@@ -15,7 +15,7 @@ import (
  */
 type tcpStream struct {
 	id             int64
-	idLong         string
+	pcapId         string
 	itemCount      int64
 	identifyMode   bool
 	emittable      bool
@@ -32,9 +32,9 @@ type tcpStream struct {
 	sync.Mutex
 }
 
-func NewTcpStream(id string, identifyMode bool, isTargetted bool, streamsMap api.TcpStreamMap, capture api.Capture) *tcpStream {
+func NewTcpStream(pcapId string, identifyMode bool, isTargetted bool, streamsMap api.TcpStreamMap, capture api.Capture) *tcpStream {
 	t := &tcpStream{
-		idLong:       id,
+		pcapId:       pcapId,
 		identifyMode: identifyMode,
 		isTargetted:  isTargetted,
 		streamsMap:   streamsMap,
@@ -98,8 +98,8 @@ func (t *tcpStream) SetAsEmittable() {
 	t.emittable = true
 }
 
-func (t *tcpStream) GetId() string {
-	return fmt.Sprintf("%s-%d", t.idLong, t.itemCount)
+func (t *tcpStream) GetPcapId() string {
+	return fmt.Sprintf("%s-%d", t.pcapId, t.itemCount)
 }
 
 func (t *tcpStream) GetIsIdentifyMode() bool {

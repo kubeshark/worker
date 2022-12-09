@@ -22,7 +22,7 @@ import (
  * Generates a new tcp stream for each new tcp connection. Closes the stream when the connection closes.
  */
 type tcpStreamFactory struct {
-	id            string
+	pcapId        string
 	wg            sync.WaitGroup
 	identifyMode  bool
 	outputChannel chan *api.OutputChannelItem
@@ -31,7 +31,7 @@ type tcpStreamFactory struct {
 	opts          *misc.Opts
 }
 
-func NewTcpStreamFactory(id string, identifyMode bool, outputChannel chan *api.OutputChannelItem, streamsMap api.TcpStreamMap, opts *misc.Opts) *tcpStreamFactory {
+func NewTcpStreamFactory(pcapId string, identifyMode bool, outputChannel chan *api.OutputChannelItem, streamsMap api.TcpStreamMap, opts *misc.Opts) *tcpStreamFactory {
 	var ownIps []string
 
 	if localhostIPs, err := getLocalhostIPs(); err != nil {
@@ -43,7 +43,7 @@ func NewTcpStreamFactory(id string, identifyMode bool, outputChannel chan *api.O
 	}
 
 	return &tcpStreamFactory{
-		id:            id,
+		pcapId:        pcapId,
 		identifyMode:  identifyMode,
 		outputChannel: outputChannel,
 		streamsMap:    streamsMap,
@@ -63,7 +63,7 @@ func (factory *tcpStreamFactory) New(net, transport gopacket.Flow, tcpLayer *lay
 
 	props := factory.getStreamProps(srcIp, srcPort, dstIp, dstPort)
 	isTargetted := props.isTargetted
-	stream := NewTcpStream(factory.id, factory.identifyMode, isTargetted, factory.streamsMap, getPacketOrigin(ac))
+	stream := NewTcpStream(factory.pcapId, factory.identifyMode, isTargetted, factory.streamsMap, getPacketOrigin(ac))
 	var emitter api.Emitter = &api.Emitting{
 		AppStats:      &diagnose.AppStats,
 		Stream:        stream,
