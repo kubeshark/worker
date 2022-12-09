@@ -2,7 +2,10 @@ package routes
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/kubeshark/base/pkg/api"
@@ -30,7 +33,22 @@ func handleError(c *gin.Context, err error) {
 }
 
 func getItem(c *gin.Context, opts *misc.Opts) {
-	id := c.Param("id")
+	_id := c.Param("id")
+	idIndex := strings.Split(_id, "-")
+	if len(idIndex) < 2 {
+		msg := "Malformed ID!"
+		log.Error().Str("id", _id).Msg(msg)
+		handleError(c, fmt.Errorf(msg))
+		return
+	}
+	id := idIndex[0]
+	index, err := strconv.ParseInt(idIndex[1], 0, 10)
+	if err != nil {
+		log.Error().Err(err).Str("pcap", id).Str("index", idIndex[1]).Msg("Failed parsing index!")
+		handleError(c, err)
+		return
+	}
+
 	query := c.Query("q")
 
 	outputChannel := make(chan *api.OutputChannelItem)
@@ -56,7 +74,13 @@ func getItem(c *gin.Context, opts *misc.Opts) {
 		}
 	}()
 
+	var i int64 = -1
 	for item := range outputChannel {
+		i++
+		if i < index {
+			continue
+		}
+
 		// TODO: The previously bad design forces us to Marshal and Unmarshal
 		var data []byte
 		data, err = json.Marshal(item)

@@ -4,6 +4,7 @@ import "github.com/kubeshark/base/pkg/api"
 
 type tlsStream struct {
 	id           string
+	itemCount    int64
 	identifyMode bool
 	emittable    bool
 	reader       *tlsReader
@@ -40,4 +41,8 @@ func (t *tlsStream) GetIsTargetted() bool {
 
 func (t *tlsStream) GetIsClosed() bool {
 	return false
+}
+
+func (t *tlsStream) IncrementItemCount() {
+	t.itemCount++
 }

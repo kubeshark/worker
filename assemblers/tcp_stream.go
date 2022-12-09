@@ -1,6 +1,7 @@
 package assemblers
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 type tcpStream struct {
 	id             int64
 	idLong         string
+	itemCount      int64
 	identifyMode   bool
 	emittable      bool
 	isClosed       bool
@@ -97,7 +99,7 @@ func (t *tcpStream) SetAsEmittable() {
 }
 
 func (t *tcpStream) GetId() string {
-	return t.idLong
+	return fmt.Sprintf("%s-%d", t.idLong, t.itemCount)
 }
 
 func (t *tcpStream) GetIsIdentifyMode() bool {
@@ -118,4 +120,8 @@ func (t *tcpStream) GetIsTargetted() bool {
 
 func (t *tcpStream) GetIsClosed() bool {
 	return t.isClosed
+}
+
+func (t *tcpStream) IncrementItemCount() {
+	t.itemCount++
 }
