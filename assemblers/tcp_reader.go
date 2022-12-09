@@ -138,6 +138,7 @@ func (reader *tcpReader) Read(p []byte) (int, error) {
 
 	if !ok || len(reader.data) == 0 {
 		if reader.parent.GetIsIdentifyMode() {
+			reader.parent.identifyMode = false
 			reader.parent.pcap.Close()
 			if !reader.parent.isEmittable() {
 				log.Debug().Str("file", reader.parent.pcap.Name()).Int("id", int(reader.parent.id)).Msg("Removing PCAP:")
