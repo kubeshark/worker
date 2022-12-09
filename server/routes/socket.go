@@ -111,11 +111,7 @@ func handlePcapFile(filename string, outputChannel chan *api.OutputChannelItem, 
 	}
 	go s.ReadPackets(packets)
 
-	assembler, err := assemblers.NewTcpAssembler(filename, false, outputChannel, streamsMap, opts)
-	if err != nil {
-		log.Error().Err(err).Str("pcap", filename).Msg("Failed creating TCP assembler:")
-		return
-	}
+	assembler := assemblers.NewTcpAssembler(filename, false, outputChannel, streamsMap, opts)
 	for {
 		packetInfo, ok := <-packets
 		if !ok {

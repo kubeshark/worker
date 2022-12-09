@@ -22,17 +22,16 @@ import (
  * Generates a new tcp stream for each new tcp connection. Closes the stream when the connection closes.
  */
 type tcpStreamFactory struct {
-	id               string
-	wg               sync.WaitGroup
-	identifyMode     bool
-	outputChannel    chan *api.OutputChannelItem
-	streamsMap       api.TcpStreamMap
-	ownIps           []string
-	opts             *misc.Opts
-	streamsCallbacks tcpStreamCallbacks
+	id            string
+	wg            sync.WaitGroup
+	identifyMode  bool
+	outputChannel chan *api.OutputChannelItem
+	streamsMap    api.TcpStreamMap
+	ownIps        []string
+	opts          *misc.Opts
 }
 
-func NewTcpStreamFactory(id string, identifyMode bool, outputChannel chan *api.OutputChannelItem, streamsMap api.TcpStreamMap, opts *misc.Opts, streamsCallbacks tcpStreamCallbacks) *tcpStreamFactory {
+func NewTcpStreamFactory(id string, identifyMode bool, outputChannel chan *api.OutputChannelItem, streamsMap api.TcpStreamMap, opts *misc.Opts) *tcpStreamFactory {
 	var ownIps []string
 
 	if localhostIPs, err := getLocalhostIPs(); err != nil {
@@ -44,13 +43,12 @@ func NewTcpStreamFactory(id string, identifyMode bool, outputChannel chan *api.O
 	}
 
 	return &tcpStreamFactory{
-		id:               id,
-		identifyMode:     identifyMode,
-		outputChannel:    outputChannel,
-		streamsMap:       streamsMap,
-		ownIps:           ownIps,
-		opts:             opts,
-		streamsCallbacks: streamsCallbacks,
+		id:            id,
+		identifyMode:  identifyMode,
+		outputChannel: outputChannel,
+		streamsMap:    streamsMap,
+		ownIps:        ownIps,
+		opts:          opts,
 	}
 }
 
@@ -65,8 +63,7 @@ func (factory *tcpStreamFactory) New(net, transport gopacket.Flow, tcpLayer *lay
 
 	props := factory.getStreamProps(srcIp, srcPort, dstIp, dstPort)
 	isTargetted := props.isTargetted
-	connectionId := getConnectionId(srcIp, srcPort, dstIp, dstPort)
-	stream := NewTcpStream(factory.id, factory.identifyMode, isTargetted, factory.streamsMap, getPacketOrigin(ac), connectionId, factory.streamsCallbacks)
+	stream := NewTcpStream(factory.id, factory.identifyMode, isTargetted, factory.streamsMap, getPacketOrigin(ac))
 	var emitter api.Emitter = &api.Emitting{
 		AppStats:      &diagnose.AppStats,
 		Stream:        stream,

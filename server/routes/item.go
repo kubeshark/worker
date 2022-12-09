@@ -45,12 +45,7 @@ func getItem(c *gin.Context, opts *misc.Opts) {
 	}
 	go s.ReadPackets(packets)
 
-	assembler, err := assemblers.NewTcpAssembler(id, false, outputChannel, streamsMap, opts)
-	if err != nil {
-		log.Error().Err(err).Str("pcap", id).Msg("Failed creating TCP assembler:")
-		handleError(c, err)
-		return
-	}
+	assembler := assemblers.NewTcpAssembler(id, false, outputChannel, streamsMap, opts)
 	go func() {
 		for {
 			packetInfo, ok := <-packets

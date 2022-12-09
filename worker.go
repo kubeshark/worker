@@ -45,13 +45,7 @@ func startWorker(opts *misc.Opts, streamsMap api.TcpStreamMap, outputItems chan 
 			os.Getenv(assemblers.MemoryProfilingTimeIntervalSeconds))
 	}
 
-	assembler, err := initializeWorker(opts, outputItems, streamsMap)
-
-	if err != nil {
-		log.Error().Err(err).Msg("Coudln't initialize the worker!")
-		return
-	}
-
+	assembler := initializeWorker(opts, outputItems, streamsMap)
 	go startAssembler(streamsMap, assembler)
 }
 
@@ -167,7 +161,7 @@ func initializePacketSources() error {
 	return err
 }
 
-func initializeWorker(opts *misc.Opts, outputItems chan *api.OutputChannelItem, streamsMap api.TcpStreamMap) (*assemblers.TcpAssembler, error) {
+func initializeWorker(opts *misc.Opts, outputItems chan *api.OutputChannelItem, streamsMap api.TcpStreamMap) *assemblers.TcpAssembler {
 	diagnose.InitializeErrorsMap(*debug, *verbose, *quiet)
 	diagnose.InitializeWorkerInternalStats()
 
@@ -178,7 +172,6 @@ func initializeWorker(opts *misc.Opts, outputItems chan *api.OutputChannelItem, 
 	}
 
 	opts.IgnoredPorts = append(opts.IgnoredPorts, buildIgnoredPortsList(*ignoredPorts)...)
-	opts.MaxLiveStreams = *maxLiveStreams
 	opts.StaleConnectionTimeout = time.Duration(*staleTimeoutSeconds) * time.Second
 
 	return assemblers.NewTcpAssembler("", true, outputItems, streamsMap, opts)

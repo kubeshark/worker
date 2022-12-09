@@ -10,7 +10,6 @@ import (
 type Opts struct {
 	HostMode               bool
 	IgnoredPorts           []uint16
-	MaxLiveStreams         int
 	StaleConnectionTimeout time.Duration
 }
 

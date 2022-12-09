@@ -14,11 +14,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type tcpStreamCallbacks interface {
-	tcpStreamCreated(stream *tcpStream)
-	tcpStreamClosed(stream *tcpStream)
-}
-
 /* It's a connection (bidirectional)
  * Implements gopacket.reassembly.Stream interface (Accept, ReassembledSG, ReassemblyComplete)
  * ReassembledSG gets called when new reassembled data is ready (i.e. bytes in order, no duplicates, complete)
@@ -39,15 +34,12 @@ type tcpStream struct {
 	reqResMatchers []api.RequestResponseMatcher
 	createdAt      time.Time
 	streamsMap     api.TcpStreamMap
-	connectionId   connectionId
-	callbacks      tcpStreamCallbacks
 	pcap           *os.File
 	pcapWriter     *pcapgo.Writer
 	sync.Mutex
 }
 
-func NewTcpStream(id string, identifyMode bool, isTargetted bool, streamsMap api.TcpStreamMap, capture api.Capture,
-	connectionId connectionId, callbacks tcpStreamCallbacks) *tcpStream {
+func NewTcpStream(id string, identifyMode bool, isTargetted bool, streamsMap api.TcpStreamMap, capture api.Capture) *tcpStream {
 	t := &tcpStream{
 		idLong:       id,
 		identifyMode: identifyMode,
@@ -55,11 +47,7 @@ func NewTcpStream(id string, identifyMode bool, isTargetted bool, streamsMap api
 		streamsMap:   streamsMap,
 		origin:       capture,
 		createdAt:    time.Now(),
-		connectionId: connectionId,
-		callbacks:    callbacks,
 	}
-
-	t.callbacks.tcpStreamCreated(t)
 
 	return t
 }
@@ -98,7 +86,6 @@ func (t *tcpStream) close() {
 	t.streamsMap.Delete(t.id)
 	t.client.close()
 	t.server.close()
-	t.callbacks.tcpStreamClosed(t)
 }
 
 func (t *tcpStream) addCounterPair(counterPair *api.CounterPair) {
