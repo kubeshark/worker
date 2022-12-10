@@ -63,7 +63,8 @@ func (t *tcpStream) createPcapWriter() {
 			log.Error().Err(err).Msg("Couldn't create PCAP:")
 		} else {
 			t.pcapWriter = pcapgo.NewWriter(t.pcap)
-			t.pcapWriter.WriteFileHeader(uint32(misc.Snaplen), layers.LinkTypeLinuxSLL)
+			err = t.pcapWriter.WriteFileHeader(uint32(misc.Snaplen), layers.LinkTypeLinuxSLL)
+			log.Error().Err(err).Msg("While writing the PCAP header:")
 		}
 	}
 }
@@ -115,10 +116,6 @@ func (t *tcpStream) addReqResMatcher(reqResMatcher api.RequestResponseMatcher) {
 	t.reqResMatchers = append(t.reqResMatchers, reqResMatcher)
 }
 
-func (t *tcpStream) isProtocolIdentified() bool {
-	return t.protocol != nil
-}
-
 func (t *tcpStream) isEmittable() bool {
 	return t.emittable
 }
@@ -139,7 +136,8 @@ func (t *tcpStream) SetAsEmittable() {
 		pcapPath := misc.BuildPcapPath(t.id)
 		misc.AlivePcaps.Store(pcapPath, true)
 		log.Debug().Str("old", tmpPcapPath).Str("new", pcapPath).Msg("Renaming PCAP:")
-		os.Rename(tmpPcapPath, pcapPath)
+		err := os.Rename(tmpPcapPath, pcapPath)
+		log.Error().Err(err).Str("pcap", tmpPcapPath).Msg("Couldn't rename the PCAP file:")
 	}
 	t.emittable = true
 }

@@ -7,7 +7,6 @@ import (
 )
 
 type tlsStream struct {
-	id           string
 	pcapId       string
 	itemCount    int64
 	identifyMode bool
