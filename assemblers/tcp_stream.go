@@ -2,10 +2,15 @@ package assemblers
 
 import (
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
 	"github.com/kubeshark/base/pkg/api"
+	"github.com/kubeshark/gopacket/layers"
+	"github.com/kubeshark/gopacket/pcapgo"
+	"github.com/kubeshark/worker/misc"
+	"github.com/rs/zerolog/log"
 )
 
 /* It's a connection (bidirectional)
@@ -29,6 +34,8 @@ type tcpStream struct {
 	reqResMatchers []api.RequestResponseMatcher
 	createdAt      time.Time
 	streamsMap     api.TcpStreamMap
+	pcap           *os.File
+	pcapWriter     *pcapgo.Writer
 	sync.Mutex
 }
 
@@ -45,12 +52,37 @@ func NewTcpStream(pcapId string, identifyMode bool, isTargetted bool, streamsMap
 	return t
 }
 
+func (t *tcpStream) createPcapWriter() {
+	if t.GetIsIdentifyMode() {
+		tmpPcapPath := misc.BuildTmpPcapPath(t.id)
+		log.Info().Str("file", tmpPcapPath).Msg("Dumping TCP stream:")
+
+		var err error
+		t.pcap, err = os.OpenFile(tmpPcapPath, os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			log.Error().Err(err).Msg("Couldn't create PCAP:")
+		} else {
+			t.pcapWriter = pcapgo.NewWriter(t.pcap)
+			t.pcapWriter.WriteFileHeader(uint32(misc.Snaplen), layers.LinkTypeLinuxSLL)
+		}
+	}
+}
+
+func (t *tcpStream) handlePcapDissectionResult() {
+	if t.GetIsIdentifyMode() && !t.isEmittable() {
+		tmpPcapPath := misc.BuildTmpPcapPath(t.id)
+		log.Debug().Str("file", tmpPcapPath).Int("id", int(t.id)).Msg("Removing PCAP:")
+		os.Remove(tmpPcapPath)
+	}
+}
+
 func (t *tcpStream) getId() int64 {
 	return t.id
 }
 
 func (t *tcpStream) setId(id int64) {
 	t.id = id
+	t.createPcapWriter()
 }
 
 func (t *tcpStream) close() {
@@ -62,6 +94,11 @@ func (t *tcpStream) close() {
 	}
 
 	t.isClosed = true
+
+	if t.GetIsIdentifyMode() {
+		log.Debug().Str("pcap", t.pcap.Name()).Msg("Closing:")
+		t.pcap.Close()
+	}
 
 	t.streamsMap.Delete(t.id)
 	t.client.close()
@@ -95,6 +132,11 @@ func (t *tcpStream) SetProtocol(protocol *api.Protocol) {
 }
 
 func (t *tcpStream) SetAsEmittable() {
+	if t.GetIsIdentifyMode() && !t.isEmittable() {
+		tmpPcapPath := misc.BuildTmpPcapPath(t.id)
+		log.Debug().Int("id", int(t.id)).Msg("Finalizing PCAP:")
+		os.Rename(tmpPcapPath, misc.BuildPcapPath(t.id))
+	}
 	t.emittable = true
 }
 

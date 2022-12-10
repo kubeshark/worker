@@ -3,14 +3,11 @@ package assemblers
 import (
 	"bufio"
 	"io"
-	"os"
 	"sync"
 	"time"
 
 	"github.com/kubeshark/base/pkg/api"
 	"github.com/kubeshark/base/pkg/extensions"
-	"github.com/kubeshark/worker/misc"
-	"github.com/rs/zerolog/log"
 )
 
 /* TcpReader gets reads from a channel of bytes of tcp payload, and parses it into requests and responses.
@@ -64,17 +61,7 @@ func (reader *tcpReader) run(options *api.TrafficFilteringOptions, wg *sync.Wait
 		reader.rewind()
 	}
 
-	if reader.parent.GetIsIdentifyMode() {
-		reader.parent.identifyMode = false
-		tmpPcapPath := misc.BuildTmpPcapPath(reader.parent.id)
-		if !reader.parent.isEmittable() {
-			log.Debug().Str("file", tmpPcapPath).Int("id", int(reader.parent.id)).Msg("Removing PCAP:")
-			os.Remove(tmpPcapPath)
-		} else {
-			log.Debug().Int("id", int(reader.parent.id)).Msg("Finalizing PCAP:")
-			os.Rename(tmpPcapPath, misc.BuildPcapPath(reader.parent.id))
-		}
-	}
+	reader.parent.handlePcapDissectionResult()
 }
 
 func (reader *tcpReader) close() {
