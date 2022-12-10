@@ -2,7 +2,6 @@ package assemblers
 
 import (
 	"bufio"
-	"fmt"
 	"io"
 	"os"
 	"sync"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/kubeshark/base/pkg/api"
 	"github.com/kubeshark/base/pkg/extensions"
+	"github.com/kubeshark/worker/misc"
 	"github.com/rs/zerolog/log"
 )
 
@@ -66,13 +66,13 @@ func (reader *tcpReader) run(options *api.TrafficFilteringOptions, wg *sync.Wait
 
 	if reader.parent.GetIsIdentifyMode() {
 		reader.parent.identifyMode = false
-		id := fmt.Sprintf("data/tcp_stream_%09d.pcaptmp", reader.parent.id)
+		tmpPcapPath := misc.BuildTmpPcapPath(reader.parent.id)
 		if !reader.parent.isEmittable() {
-			log.Debug().Str("file", id).Int("id", int(reader.parent.id)).Msg("Removing PCAP:")
-			os.Remove(id)
+			log.Debug().Str("file", tmpPcapPath).Int("id", int(reader.parent.id)).Msg("Removing PCAP:")
+			os.Remove(tmpPcapPath)
 		} else {
 			log.Debug().Int("id", int(reader.parent.id)).Msg("Finalizing PCAP:")
-			os.Rename(id, fmt.Sprintf("data/tcp_stream_%09d.pcap", reader.parent.id))
+			os.Rename(tmpPcapPath, misc.BuildPcapPath(reader.parent.id))
 		}
 	}
 }

@@ -13,6 +13,7 @@ import (
 
 	"github.com/kubeshark/base/pkg/api"
 	"github.com/kubeshark/worker/diagnose"
+	"github.com/kubeshark/worker/misc"
 	"github.com/rs/zerolog/log"
 )
 
@@ -22,7 +23,7 @@ type tcpStreamMap struct {
 }
 
 func getIdFromPcapFiles() int64 {
-	pcapFiles, err := os.ReadDir("./data")
+	pcapFiles, err := os.ReadDir(misc.GetDataDir())
 	if err != nil {
 		log.Error().Err(err).Msg("Failed get the list of PCAP files!")
 		return 0

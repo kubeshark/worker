@@ -52,6 +52,8 @@ func main() {
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	}
 
+	misc.InitDataDir()
+
 	run()
 
 	signalChan := make(chan os.Signal, 1)

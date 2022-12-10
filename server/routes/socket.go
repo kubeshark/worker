@@ -46,7 +46,7 @@ func websocketHandler(c *gin.Context, opts *misc.Opts) {
 		return
 	}
 
-	pcapFiles, err := os.ReadDir("./data")
+	pcapFiles, err := os.ReadDir(misc.GetDataDir())
 	if err != nil {
 		log.Error().Err(err).Msg("Failed get the list of PCAP files!")
 	}
@@ -88,30 +88,30 @@ func websocketHandler(c *gin.Context, opts *misc.Opts) {
 
 	}()
 
-	err = watcher.Add("./data")
+	err = watcher.Add(misc.GetDataDir())
 	if err != nil {
 		log.Fatal().Err(err).Msg("Add failed:")
 	}
 	<-done
 }
 
-func handlePcapFile(filename string, outputChannel chan *api.OutputChannelItem, opts *misc.Opts) {
+func handlePcapFile(id string, outputChannel chan *api.OutputChannelItem, opts *misc.Opts) {
 	log.Info().Int("go", runtime.NumGoroutine()).Msg("Number of Goroutines:")
-	if strings.HasSuffix(filename, "tmp") {
+	if strings.HasSuffix(id, "tmp") {
 		return
 	}
 
-	log.Info().Str("pcap", filename).Msg("Reading:")
+	log.Info().Str("pcap", id).Msg("Reading:")
 	streamsMap := assemblers.NewTcpStreamMap(false)
 	packets := make(chan source.TcpPacketInfo)
-	s, err := source.NewTcpPacketSource(filename, "data/"+filename, "", "libpcap", api.Pcap)
+	s, err := source.NewTcpPacketSource(id, misc.GetPcapPath(id), "", "libpcap", api.Pcap)
 	if err != nil {
-		log.Error().Err(err).Str("pcap", filename).Msg("Failed to create TCP packet source!")
+		log.Error().Err(err).Str("pcap", id).Msg("Failed to create TCP packet source!")
 		return
 	}
 	go s.ReadPackets(packets)
 
-	assembler := assemblers.NewTcpAssembler(filename, false, outputChannel, streamsMap, opts)
+	assembler := assemblers.NewTcpAssembler(id, false, outputChannel, streamsMap, opts)
 	for {
 		packetInfo, ok := <-packets
 		if !ok {

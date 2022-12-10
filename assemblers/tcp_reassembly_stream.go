@@ -2,7 +2,6 @@ package assemblers
 
 import (
 	"encoding/binary"
-	"fmt"
 	"os"
 
 	"github.com/kubeshark/gopacket"
@@ -158,10 +157,10 @@ func (t *tcpReassemblyStream) ReassembledSG(sg reassembly.ScatterGather, ac reas
 
 func (t *tcpReassemblyStream) ReassemblyComplete(ac reassembly.AssemblerContext) bool {
 	if t.tcpStream.GetIsIdentifyMode() {
-		id := fmt.Sprintf("data/tcp_stream_%09d.pcaptmp", t.tcpStream.id)
-		log.Info().Str("id", id).Msg("Dumping TCP stream:")
+		tmpPcapPath := misc.BuildTmpPcapPath(t.tcpStream.id)
+		log.Info().Str("file", tmpPcapPath).Msg("Dumping TCP stream:")
 
-		pcap, err := os.OpenFile(id, os.O_CREATE|os.O_WRONLY, 0644)
+		pcap, err := os.OpenFile(tmpPcapPath, os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			log.Error().Err(err).Msg("Couldn't create PCAP:")
 		}

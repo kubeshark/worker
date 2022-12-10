@@ -55,7 +55,7 @@ func getItem(c *gin.Context, opts *misc.Opts) {
 
 	streamsMap := assemblers.NewTcpStreamMap(false)
 	packets := make(chan source.TcpPacketInfo)
-	s, err := source.NewTcpPacketSource(id, "data/"+id, "", "libpcap", api.Pcap)
+	s, err := source.NewTcpPacketSource(id, misc.GetPcapPath(id), "", "libpcap", api.Pcap)
 	if err != nil {
 		log.Error().Err(err).Str("pcap", id).Msg("Failed to create TCP packet source!")
 		handleError(c, err)
