@@ -52,6 +52,10 @@ func Start(app *gin.Engine, port int) {
 		if err != nil {
 			log.Error().Err(err).Send()
 		}
+		err = misc.CleanUpTmpPcaps()
+		if err != nil {
+			log.Error().Err(err).Msg("While cleaning up the temporary PCAP files:")
+		}
 		os.Exit(0)
 	}()
 

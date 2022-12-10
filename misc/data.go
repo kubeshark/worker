@@ -3,6 +3,7 @@ package misc
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/rs/zerolog/log"
@@ -41,4 +42,22 @@ func BuildPcapPath(id int64) string {
 
 func BuildTmpPcapPath(id int64) string {
 	return fmt.Sprintf("%stmp", BuildPcapPath(id))
+}
+
+func CleanUpTmpPcaps() error {
+	pcapFiles, err := os.ReadDir(GetDataDir())
+	if err != nil {
+		return err
+	}
+
+	for _, pcap := range pcapFiles {
+		if filepath.Ext(pcap.Name()) == ".pcaptmp" {
+			err = os.Remove(GetPcapPath(pcap.Name()))
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }

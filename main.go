@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"os"
-	"os/signal"
 	"time"
 
 	"github.com/kubeshark/base/pkg/api"
@@ -55,12 +54,6 @@ func main() {
 	misc.InitAlivePcapsMap()
 
 	run()
-
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, os.Interrupt)
-	<-signalChan
-
-	log.Info().Msg("Exiting")
 }
 
 func run() {
