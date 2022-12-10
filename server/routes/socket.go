@@ -44,14 +44,16 @@ func websocketHandler(c *gin.Context, opts *misc.Opts) {
 		log.Error().Err(err).Msg("Failed to set WebSocket upgrade:")
 		return
 	}
+	defer ws.Close()
 
 	pcapFiles, err := os.ReadDir(misc.GetDataDir())
 	if err != nil {
 		log.Error().Err(err).Msg("Failed get the list of PCAP files!")
 	}
 
+	quit := make(chan bool)
 	outputChannel := make(chan *api.OutputChannelItem)
-	go writeChannelToSocket(outputChannel, ws, c.Query("q"))
+	go writeChannelToSocket(outputChannel, ws, c.Query("q"), quit)
 
 	for _, pcap := range pcapFiles {
 		handlePcapFile(pcap.Name(), outputChannel, opts)
@@ -82,6 +84,8 @@ func websocketHandler(c *gin.Context, opts *misc.Opts) {
 					return
 				}
 				log.Fatal().Err(err).Msg("Watcher error:")
+			case <-quit:
+				return
 			}
 		}
 
@@ -131,7 +135,7 @@ func processPackets(id string, outputChannel chan *api.OutputChannelItem, opts *
 	s.Handle.Close()
 }
 
-func writeChannelToSocket(outputChannel <-chan *api.OutputChannelItem, ws *websocket.Conn, query string) {
+func writeChannelToSocket(outputChannel <-chan *api.OutputChannelItem, ws *websocket.Conn, query string, quit chan bool) {
 	for item := range outputChannel {
 		// TODO: The previously bad design forces us to Marshal and Unmarshal
 		data, err := json.Marshal(item)
@@ -182,7 +186,8 @@ func writeChannelToSocket(outputChannel <-chan *api.OutputChannelItem, ws *webso
 		err = ws.WriteMessage(1, summary)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to set write message to WebSocket:")
-			continue
+			quit <- true
+			return
 		}
 	}
 }
