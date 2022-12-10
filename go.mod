@@ -11,7 +11,7 @@ require (
 	github.com/gorilla/websocket v1.5.0
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/knightsc/gapstone v0.0.0-20191231144527-6fa5afaf11a9
-	github.com/kubeshark/base v0.1.4
+	github.com/kubeshark/base v0.1.5
 	github.com/kubeshark/gopacket v1.1.21
 	github.com/moby/moby v20.10.17+incompatible
 	github.com/orcaman/concurrent-map v1.0.0
@@ -80,5 +80,3 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.1 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
-
-replace github.com/kubeshark/base v0.1.4 => /home/mertyildiran/Documents/kubeshark/base
