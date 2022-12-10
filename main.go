@@ -53,6 +53,7 @@ func main() {
 	}
 
 	misc.InitDataDir()
+	misc.InitAlivePcapsMap()
 
 	run()
 

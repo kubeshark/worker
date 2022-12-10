@@ -22,7 +22,7 @@ type Handle interface {
 	Close() (err error)
 }
 
-type tcpPacketSource struct {
+type TcpPacketSource struct {
 	Handle    Handle
 	defragger *ip4defrag.IPv4Defragmenter
 	name      string
@@ -31,14 +31,14 @@ type tcpPacketSource struct {
 
 type TcpPacketInfo struct {
 	Packet gopacket.Packet
-	Source *tcpPacketSource
+	Source *TcpPacketSource
 }
 
 func NewTcpPacketSource(name, filename string, interfaceName string, packetCapture string,
-	origin api.Capture) (*tcpPacketSource, error) {
+	origin api.Capture) (*TcpPacketSource, error) {
 	var err error
 
-	result := &tcpPacketSource{
+	result := &TcpPacketSource{
 		name:      name,
 		defragger: ip4defrag.NewIPv4Defragmenter(),
 		Origin:    origin,
@@ -86,34 +86,39 @@ func NewTcpPacketSource(name, filename string, interfaceName string, packetCaptu
 	return result, nil
 }
 
-func (source *tcpPacketSource) String() string {
+func (source *TcpPacketSource) String() string {
 	return source.name
 }
 
-func (source *tcpPacketSource) setBPFFilter(expr string) (err error) {
+func (source *TcpPacketSource) setBPFFilter(expr string) (err error) {
 	return source.Handle.SetBPF(expr)
 }
 
-func (source *tcpPacketSource) close() {
+func (source *TcpPacketSource) close() {
 	if source.Handle != nil {
 		source.Handle.Close()
 	}
 }
 
-func (source *tcpPacketSource) Stats() (packetsReceived uint, packetsDropped uint, err error) {
+func (source *TcpPacketSource) Stats() (packetsReceived uint, packetsDropped uint, err error) {
 	return source.Handle.Stats()
 }
 
-func (source *tcpPacketSource) ReadPackets(packets chan<- TcpPacketInfo) {
+func (source *TcpPacketSource) ReadPackets(packets chan<- TcpPacketInfo, pcapPath string) {
 	log.Info().Str("source", source.name).Msg("Start reading packets from:")
 
 	for {
 		packet, err := source.Handle.NextPacket()
 
 		if err == io.EOF {
-			log.Info().Str("source", source.name).Msg("Got EOF while reading packets from:")
+			// log.Debug().Str("source", source.name).Msg("Got EOF while reading packets from:")
+			if pcapPath != "" {
+				if _, ok := misc.AlivePcaps.Load(pcapPath); ok {
+					continue
+				}
+			}
 			close(packets)
-			log.Info().Str("source", source.name).Msg("Closed packet channel because of EOF.")
+			// log.Debug().Str("source", source.name).Msg("Closed packet channel because of EOF.")
 			return
 		} else if err != nil {
 			if err.Error() != "Timeout Expired" {

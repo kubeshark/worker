@@ -61,7 +61,7 @@ func getItem(c *gin.Context, opts *misc.Opts) {
 		handleError(c, err)
 		return
 	}
-	go s.ReadPackets(packets)
+	go s.ReadPackets(packets, "")
 
 	assembler := assemblers.NewTcpAssembler(id, false, outputChannel, streamsMap, opts)
 	go func() {

@@ -104,13 +104,23 @@ func handlePcapFile(id string, outputChannel chan *api.OutputChannelItem, opts *
 	log.Info().Str("pcap", id).Msg("Reading:")
 	streamsMap := assemblers.NewTcpStreamMap(false)
 	packets := make(chan source.TcpPacketInfo)
+	pcapPath := misc.GetPcapPath(id)
 	s, err := source.NewTcpPacketSource(id, misc.GetPcapPath(id), "", "libpcap", api.Pcap)
 	if err != nil {
 		log.Error().Err(err).Str("pcap", id).Msg("Failed to create TCP packet source!")
 		return
 	}
-	go s.ReadPackets(packets)
+	go s.ReadPackets(packets, pcapPath)
 
+	if _, ok := misc.AlivePcaps.Load(pcapPath); ok {
+		go processPackets(id, outputChannel, opts, streamsMap, packets, s)
+	} else {
+		processPackets(id, outputChannel, opts, streamsMap, packets, s)
+	}
+}
+
+func processPackets(id string, outputChannel chan *api.OutputChannelItem, opts *misc.Opts,
+	streamsMap api.TcpStreamMap, packets chan source.TcpPacketInfo, s *source.TcpPacketSource) {
 	assembler := assemblers.NewTcpAssembler(id, false, outputChannel, streamsMap, opts)
 	for {
 		packetInfo, ok := <-packets

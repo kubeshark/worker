@@ -98,6 +98,8 @@ func (t *tcpStream) close() {
 	if t.GetIsIdentifyMode() {
 		log.Debug().Str("pcap", t.pcap.Name()).Msg("Closing:")
 		t.pcap.Close()
+		pcapPath := misc.BuildPcapPath(t.id)
+		misc.AlivePcaps.Delete(pcapPath)
 	}
 
 	t.streamsMap.Delete(t.id)
@@ -134,8 +136,10 @@ func (t *tcpStream) SetProtocol(protocol *api.Protocol) {
 func (t *tcpStream) SetAsEmittable() {
 	if t.GetIsIdentifyMode() && !t.isEmittable() {
 		tmpPcapPath := misc.BuildTmpPcapPath(t.id)
-		log.Debug().Int("id", int(t.id)).Msg("Finalizing PCAP:")
-		os.Rename(tmpPcapPath, misc.BuildPcapPath(t.id))
+		pcapPath := misc.BuildPcapPath(t.id)
+		misc.AlivePcaps.Store(pcapPath, true)
+		log.Debug().Str("old", tmpPcapPath).Str("new", pcapPath).Msg("Renaming PCAP:")
+		os.Rename(tmpPcapPath, pcapPath)
 	}
 	t.emittable = true
 }

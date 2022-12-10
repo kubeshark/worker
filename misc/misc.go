@@ -1,6 +1,7 @@
 package misc
 
 import (
+	"sync"
 	"time"
 
 	"github.com/kubeshark/base/pkg/api"
@@ -17,3 +18,9 @@ var FilteringOptions *api.TrafficFilteringOptions // global
 var TargettedPods []v1.Pod                        // global
 
 var Snaplen int = 65536
+
+var AlivePcaps *sync.Map
+
+func InitAlivePcapsMap() {
+	AlivePcaps = &sync.Map{}
+}

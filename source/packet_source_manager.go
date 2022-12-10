@@ -20,7 +20,7 @@ type PacketSourceManagerConfig struct {
 }
 
 type PacketSourceManager struct {
-	sources map[string]*tcpPacketSource
+	sources map[string]*TcpPacketSource
 	config  PacketSourceManagerConfig
 }
 
@@ -33,7 +33,7 @@ func NewPacketSourceManager(procfs string, interfaceName string,
 	}
 
 	sourceManager := &PacketSourceManager{
-		sources: map[string]*tcpPacketSource{
+		sources: map[string]*TcpPacketSource{
 			hostSourcePid: hostSource,
 		},
 	}
@@ -45,11 +45,11 @@ func NewPacketSourceManager(procfs string, interfaceName string,
 		packetCapture: packetCapture,
 	}
 
-	go hostSource.ReadPackets(packets)
+	go hostSource.ReadPackets(packets, "")
 	return sourceManager, nil
 }
 
-func newHostPacketSource(interfaceName string, packetCapture string) (*tcpPacketSource, error) {
+func newHostPacketSource(interfaceName string, packetCapture string) (*TcpPacketSource, error) {
 	source, err := NewTcpPacketSource(fmt.Sprintf("host-%s", interfaceName), "", interfaceName, packetCapture, api.Pcap)
 	if err != nil {
 		return nil, err
@@ -84,7 +84,7 @@ func (m *PacketSourceManager) updateMtlsPods(procfs string, pods []v1.Pod,
 			source, err := newNetnsPacketSource(procfs, pid, interfaceName, packetCapture, origin)
 
 			if err == nil {
-				go source.ReadPackets(packets)
+				go source.ReadPackets(packets, "")
 				m.sources[pid] = source
 			}
 		}
