@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	"github.com/fsnotify/fsnotify"
@@ -96,12 +95,11 @@ func websocketHandler(c *gin.Context, opts *misc.Opts) {
 }
 
 func handlePcapFile(id string, outputChannel chan *api.OutputChannelItem, opts *misc.Opts) {
-	log.Info().Int("go", runtime.NumGoroutine()).Msg("Number of Goroutines:")
 	if strings.HasSuffix(id, "tmp") {
 		return
 	}
 
-	log.Info().Str("pcap", id).Msg("Reading:")
+	log.Debug().Str("pcap", id).Msg("Reading:")
 	streamsMap := assemblers.NewTcpStreamMap(false)
 	packets := make(chan source.TcpPacketInfo)
 	pcapPath := misc.GetPcapPath(id)

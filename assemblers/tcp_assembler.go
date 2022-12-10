@@ -61,7 +61,7 @@ func NewTcpAssembler(pcapId string, identifyMode bool, outputChannel chan *api.O
 
 	maxBufferedPagesTotal := GetMaxBufferedPagesPerConnection()
 	maxBufferedPagesPerConnection := GetMaxBufferedPagesTotal()
-	log.Info().
+	log.Debug().
 		Int("maxBufferedPagesTotal", maxBufferedPagesTotal).
 		Int("maxBufferedPagesPerConnection", maxBufferedPagesPerConnection).
 		Interface("opts", opts).

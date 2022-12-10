@@ -55,7 +55,7 @@ func NewTcpStream(pcapId string, identifyMode bool, isTargetted bool, streamsMap
 func (t *tcpStream) createPcapWriter() {
 	if t.GetIsIdentifyMode() {
 		tmpPcapPath := misc.BuildTmpPcapPath(t.id)
-		log.Info().Str("file", tmpPcapPath).Msg("Dumping TCP stream:")
+		log.Debug().Str("file", tmpPcapPath).Msg("Dumping TCP stream:")
 
 		var err error
 		t.pcap, err = os.OpenFile(tmpPcapPath, os.O_CREATE|os.O_WRONLY, 0644)

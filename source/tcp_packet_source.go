@@ -59,7 +59,7 @@ func NewTcpPacketSource(name, filename string, interfaceName string, packetCaptu
 		if err != nil {
 			return nil, err
 		}
-		log.Info().Msg("Using AF_PACKET socket as the capture source")
+		log.Debug().Msg("Using AF_PACKET socket as the capture source")
 	default:
 		result.Handle, err = newPcapHandle(
 			filename,
@@ -71,7 +71,7 @@ func NewTcpPacketSource(name, filename string, interfaceName string, packetCaptu
 		if err != nil {
 			return nil, err
 		}
-		log.Info().Msg("Using libpcap as the capture source")
+		log.Debug().Msg("Using libpcap as the capture source")
 	}
 
 	var decoder gopacket.Decoder
@@ -105,7 +105,7 @@ func (source *TcpPacketSource) Stats() (packetsReceived uint, packetsDropped uin
 }
 
 func (source *TcpPacketSource) ReadPackets(packets chan<- TcpPacketInfo, pcapPath string) {
-	log.Info().Str("source", source.name).Msg("Start reading packets from:")
+	log.Debug().Str("source", source.name).Msg("Start reading packets from:")
 
 	for {
 		packet, err := source.Handle.NextPacket()
