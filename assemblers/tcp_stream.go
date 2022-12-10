@@ -64,7 +64,9 @@ func (t *tcpStream) createPcapWriter() {
 		} else {
 			t.pcapWriter = pcapgo.NewWriter(t.pcap)
 			err = t.pcapWriter.WriteFileHeader(uint32(misc.Snaplen), layers.LinkTypeLinuxSLL)
-			log.Error().Err(err).Msg("While writing the PCAP header:")
+			if err != nil {
+				log.Error().Err(err).Msg("While writing the PCAP header:")
+			}
 		}
 	}
 }
@@ -137,7 +139,9 @@ func (t *tcpStream) SetAsEmittable() {
 		misc.AlivePcaps.Store(pcapPath, true)
 		log.Debug().Str("old", tmpPcapPath).Str("new", pcapPath).Msg("Renaming PCAP:")
 		err := os.Rename(tmpPcapPath, pcapPath)
-		log.Error().Err(err).Str("pcap", tmpPcapPath).Msg("Couldn't rename the PCAP file:")
+		if err != nil {
+			log.Error().Err(err).Str("pcap", tmpPcapPath).Msg("Couldn't rename the PCAP file:")
+		}
 	}
 	t.emittable = true
 }
