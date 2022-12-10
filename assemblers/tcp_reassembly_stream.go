@@ -163,22 +163,22 @@ func (t *tcpReassemblyStream) ReassemblyComplete(ac reassembly.AssemblerContext)
 		pcap, err := os.OpenFile(tmpPcapPath, os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			log.Error().Err(err).Msg("Couldn't create PCAP:")
-		}
+		} else {
+			pcapWriter := pcapgo.NewWriter(pcap)
+			pcapWriter.WriteFileHeader(uint32(misc.Snaplen), layers.LinkTypeLinuxSLL)
 
-		pcapWriter := pcapgo.NewWriter(pcap)
-		pcapWriter.WriteFileHeader(uint32(misc.Snaplen), layers.LinkTypeLinuxSLL)
+			for _, packet := range t.packets {
+				outgoingPacket := packet.Data()
 
-		for _, packet := range t.packets {
-			outgoingPacket := packet.Data()
-
-			info := packet.Metadata().CaptureInfo
-			info.Length = len(outgoingPacket)
-			info.CaptureLength = len(outgoingPacket)
-			if err := pcapWriter.WritePacket(info, outgoingPacket); err != nil {
-				log.Error().Str("pcap", pcap.Name()).Err(err).Msg("Couldn't write the packet:")
+				info := packet.Metadata().CaptureInfo
+				info.Length = len(outgoingPacket)
+				info.CaptureLength = len(outgoingPacket)
+				if err := pcapWriter.WritePacket(info, outgoingPacket); err != nil {
+					log.Error().Str("pcap", pcap.Name()).Err(err).Msg("Couldn't write the packet:")
+				}
 			}
+			pcap.Close()
 		}
-		pcap.Close()
 	}
 
 	if t.tcpStream.GetIsTargetted() && !t.tcpStream.GetIsClosed() {

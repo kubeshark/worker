@@ -35,8 +35,8 @@ func getIdFromPcapFiles() int64 {
 		return id
 	}
 
-	fileName := pcapFiles[len(pcapFiles)-1].Name()
-	segments := strings.Split(fileName[:len(fileName)-len(filepath.Ext(fileName))], "_")
+	filename := pcapFiles[len(pcapFiles)-1].Name()
+	segments := strings.Split(filename[:len(filename)-len(filepath.Ext(filename))], "_")
 	segment := strings.TrimLeft(segments[len(segments)-1], "0")
 
 	id, err := strconv.ParseInt(segment, 0, 10)

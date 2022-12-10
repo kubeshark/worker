@@ -119,6 +119,8 @@ func handlePcapFile(id string, outputChannel chan *api.OutputChannelItem, opts *
 		}
 		assembler.ProcessPacket(packetInfo, false)
 	}
+
+	s.Handle.Close()
 }
 
 func writeChannelToSocket(outputChannel <-chan *api.OutputChannelItem, ws *websocket.Conn, query string) {
