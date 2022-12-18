@@ -1,8 +1,8 @@
 package tracer
 
 import (
-	"github.com/cilium/ebpf/link"
 	"github.com/go-errors/errors"
+	"github.com/kubeshark/ebpf/link"
 )
 
 type sslHooks struct {
@@ -23,84 +23,62 @@ func (s *sslHooks) installUprobes(bpfObjects *tracerObjects, sslLibraryPath stri
 		return errors.Wrap(err, 0)
 	}
 
-	sslOffsets, err := getSslOffsets(sslLibraryPath)
-
 	if err != nil {
 		return errors.Wrap(err, 0)
 	}
 
-	return s.installSslHooks(bpfObjects, sslLibrary, sslOffsets)
+	return s.installSslHooks(bpfObjects, sslLibrary)
 }
 
-func (s *sslHooks) installSslHooks(bpfObjects *tracerObjects, sslLibrary *link.Executable, offsets sslOffsets) error {
+func (s *sslHooks) installSslHooks(bpfObjects *tracerObjects, sslLibrary *link.Executable) error {
 	var err error
 
-	s.sslWriteProbe, err = sslLibrary.Uprobe("SSL_write", bpfObjects.SslWrite, &link.UprobeOptions{
-		Offset: offsets.SslWriteOffset,
-	})
+	s.sslWriteProbe, err = sslLibrary.Uprobe("SSL_write", bpfObjects.SslWrite, nil)
 
 	if err != nil {
 		return errors.Wrap(err, 0)
 	}
 
-	s.sslWriteRetProbe, err = sslLibrary.Uretprobe("SSL_write", bpfObjects.SslRetWrite, &link.UprobeOptions{
-		Offset: offsets.SslWriteOffset,
-	})
+	s.sslWriteRetProbe, err = sslLibrary.Uretprobe("SSL_write", bpfObjects.SslRetWrite, nil)
 
 	if err != nil {
 		return errors.Wrap(err, 0)
 	}
 
-	s.sslReadProbe, err = sslLibrary.Uprobe("SSL_read", bpfObjects.SslRead, &link.UprobeOptions{
-		Offset: offsets.SslReadOffset,
-	})
+	s.sslReadProbe, err = sslLibrary.Uprobe("SSL_read", bpfObjects.SslRead, nil)
 
 	if err != nil {
 		return errors.Wrap(err, 0)
 	}
 
-	s.sslReadRetProbe, err = sslLibrary.Uretprobe("SSL_read", bpfObjects.SslRetRead, &link.UprobeOptions{
-		Offset: offsets.SslReadOffset,
-	})
+	s.sslReadRetProbe, err = sslLibrary.Uretprobe("SSL_read", bpfObjects.SslRetRead, nil)
 
 	if err != nil {
 		return errors.Wrap(err, 0)
 	}
 
-	if offsets.SslWriteExOffset != 0 {
-		s.sslWriteExProbe, err = sslLibrary.Uprobe("SSL_write_ex", bpfObjects.SslWriteEx, &link.UprobeOptions{
-			Offset: offsets.SslWriteExOffset,
-		})
+	s.sslWriteExProbe, err = sslLibrary.Uprobe("SSL_write_ex", bpfObjects.SslWriteEx, nil)
 
-		if err != nil {
-			return errors.Wrap(err, 0)
-		}
-
-		s.sslWriteExRetProbe, err = sslLibrary.Uretprobe("SSL_write_ex", bpfObjects.SslRetWriteEx, &link.UprobeOptions{
-			Offset: offsets.SslWriteExOffset,
-		})
-
-		if err != nil {
-			return errors.Wrap(err, 0)
-		}
+	if err != nil {
+		return errors.Wrap(err, 0)
 	}
 
-	if offsets.SslReadExOffset != 0 {
-		s.sslReadExProbe, err = sslLibrary.Uprobe("SSL_read_ex", bpfObjects.SslReadEx, &link.UprobeOptions{
-			Offset: offsets.SslReadExOffset,
-		})
+	s.sslWriteExRetProbe, err = sslLibrary.Uretprobe("SSL_write_ex", bpfObjects.SslRetWriteEx, nil)
 
-		if err != nil {
-			return errors.Wrap(err, 0)
-		}
+	if err != nil {
+		return errors.Wrap(err, 0)
+	}
 
-		s.sslReadExRetProbe, err = sslLibrary.Uretprobe("SSL_read_ex", bpfObjects.SslRetReadEx, &link.UprobeOptions{
-			Offset: offsets.SslReadExOffset,
-		})
+	s.sslReadExProbe, err = sslLibrary.Uprobe("SSL_read_ex", bpfObjects.SslReadEx, nil)
 
-		if err != nil {
-			return errors.Wrap(err, 0)
-		}
+	if err != nil {
+		return errors.Wrap(err, 0)
+	}
+
+	s.sslReadExRetProbe, err = sslLibrary.Uretprobe("SSL_read_ex", bpfObjects.SslRetReadEx, nil)
+
+	if err != nil {
+		return errors.Wrap(err, 0)
 	}
 
 	return nil

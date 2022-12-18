@@ -26,10 +26,14 @@ lint: ## Lint the source code.
 	golangci-lint run
 
 setcap:
-	sudo setcap cap_net_raw,cap_net_admin,cap_sys_admin,cap_sys_ptrace,cap_sys_resource=eip ./worker
+	sudo setcap cap_net_raw,cap_net_admin,cap_sys_admin,cap_sys_ptrace,cap_dac_override,cap_sys_resource=eip ./worker
 
 run: setcap ## Run the program. Requires Hub being available on port 8898
 	./worker -i any -port 8897 -debug
+
+run-tls: setcap ## Run the program with TLS capture enabled. Requires Hub being available on port 8898
+	KUBESHARK_GLOBAL_LIBSSL_PID=$(shell ps -ef | awk '$$8=="python3" && $$9=="tls.py" {print $$2}') \
+		./worker -i any -port 8897 -debug -tls
 
 docker: ## Build the Docker image.
 	docker build . -t ${DOCKER_REPO}:${DOCKER_TAG} --build-arg BUILDARCH=amd64 --build-arg TARGETARCH=amd64

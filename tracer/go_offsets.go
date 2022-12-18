@@ -10,8 +10,8 @@ import (
 	"runtime"
 
 	"github.com/Masterminds/semver"
-	"github.com/cilium/ebpf/link"
 	"github.com/knightsc/gapstone"
+	"github.com/kubeshark/ebpf/link"
 	"github.com/rs/zerolog/log"
 )
 
@@ -88,21 +88,6 @@ func findGoOffsets(filePath string) (goOffsets, error) {
 	}, nil
 }
 
-func getSymbol(exe *elf.File, name string) *elf.Symbol {
-	symbols, err := exe.Symbols()
-	if err != nil {
-		return nil
-	}
-
-	for _, symbol := range symbols {
-		if symbol.Name == name {
-			s := symbol
-			return &s
-		}
-	}
-	return nil
-}
-
 func getGStructOffset(exe *elf.File) (gStructOffset uint64, err error) {
 	// This is a bit arcane. Essentially:
 	// - If the program is pure Go, it can do whatever it wants, and puts the G
@@ -123,9 +108,10 @@ func getGStructOffset(exe *elf.File) (gStructOffset uint64, err error) {
 		}
 	}
 
+	var tlsg *elf.Symbol
 	switch exe.Machine {
 	case elf.EM_X86_64, elf.EM_386:
-		tlsg := getSymbol(exe, "runtime.tlsg")
+		tlsg, err = getSymbol(exe, "runtime.tlsg")
 		if tlsg == nil || tls == nil {
 			gStructOffset = ^uint64(PtrSize) + 1 //-ptrSize
 			return
@@ -142,7 +128,7 @@ func getGStructOffset(exe *elf.File) (gStructOffset uint64, err error) {
 		gStructOffset = ^(memsz) + 1 + tlsg.Value // -tls.Memsz + tlsg.Value
 
 	case elf.EM_AARCH64:
-		tlsg := getSymbol(exe, "runtime.tls_g")
+		tlsg, err = getSymbol(exe, "runtime.tls_g")
 		if tlsg == nil || tls == nil {
 			gStructOffset = 2 * uint64(PtrSize)
 			return

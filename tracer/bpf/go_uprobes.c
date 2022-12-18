@@ -10,7 +10,6 @@ README
 Go does not follow any platform ABI like x86-64 System V ABI.
 Before 1.17, Go followed stack-based Plan9 (Bell Labs) calling convention. (ABI0)
 After 1.17, Go switched to an internal register-based calling convention. (ABIInternal)
-For now, the probes in this file supports only ABIInternal (Go 1.17+)
 
 `uretprobe` in Linux kernel uses trampoline pattern to jump to original return
 address of the probed function. A Goroutine's stack size is 2Kb while a C thread is 2MB on Linux.

@@ -4,7 +4,6 @@ go 1.17
 
 require (
 	github.com/Masterminds/semver v1.5.0
-	github.com/cilium/ebpf v0.9.1
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/gin-gonic/gin v1.8.1
 	github.com/go-errors/errors v1.4.2
@@ -13,6 +12,7 @@ require (
 	github.com/jsimonetti/rtnetlink v1.2.2
 	github.com/knightsc/gapstone v0.0.0-20191231144527-6fa5afaf11a9
 	github.com/kubeshark/base v0.1.5
+	github.com/kubeshark/ebpf v0.9.1
 	github.com/kubeshark/gopacket v1.1.21
 	github.com/mdlayher/netlink v1.7.1
 	github.com/moby/moby v20.10.17+incompatible

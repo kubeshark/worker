@@ -55,6 +55,14 @@ func BuildTmpPcapPath(id int64) string {
 	return fmt.Sprintf("%stmp", BuildPcapPath(id))
 }
 
+func BuildTlsPcapPath(id int64) string {
+	return fmt.Sprintf("%s/tls_stream_%09d.pcap", GetPcapsDir(), id)
+}
+
+func BuildTlsTmpPcapPath(id int64) string {
+	return fmt.Sprintf("%stmp", BuildTlsPcapPath(id))
+}
+
 func CleanUpTmpPcaps() error {
 	pcapFiles, err := os.ReadDir(GetPcapsDir())
 	if err != nil {

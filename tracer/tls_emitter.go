@@ -1,6 +1,8 @@
 package tracer
 
-import "github.com/kubeshark/base/pkg/api"
+import (
+	"github.com/kubeshark/base/pkg/api"
+)
 
 type tlsEmitter struct {
 	delegate  api.Emitter

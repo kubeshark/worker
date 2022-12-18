@@ -193,8 +193,8 @@ func startTracer(extension *api.Extension, outputItems chan *api.OutputChannelIt
 
 	// A quick way to instrument libssl.so without PID filtering - used for debuging and troubleshooting
 	//
-	if os.Getenv("KUBESHARK_GLOBAL_SSL_LIBRARY") != "" {
-		if err := tls.GlobalSSLLibTarget(os.Getenv("KUBESHARK_GLOBAL_SSL_LIBRARY")); err != nil {
+	if os.Getenv("KUBESHARK_GLOBAL_LIBSSL_PID") != "" {
+		if err := tls.GlobalSSLLibTarget(*procfs, os.Getenv("KUBESHARK_GLOBAL_LIBSSL_PID")); err != nil {
 			tracer.LogError(err)
 			return nil
 		}
@@ -209,13 +209,8 @@ func startTracer(extension *api.Extension, outputItems chan *api.OutputChannelIt
 		}
 	}
 
-	var emitter api.Emitter = &api.Emitting{
-		AppStats:      &diagnose.AppStats,
-		OutputChannel: outputItems,
-	}
-
 	go tls.PollForLogging()
-	go tls.Poll(emitter, options, streamsMap)
+	go tls.Poll(outputItems, options, streamsMap)
 
 	return &tls
 }

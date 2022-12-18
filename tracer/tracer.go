@@ -5,9 +5,9 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/cilium/ebpf/rlimit"
 	"github.com/go-errors/errors"
 	"github.com/kubeshark/base/pkg/api"
+	"github.com/kubeshark/ebpf/rlimit"
 	"github.com/moby/moby/pkg/parsers/kernel"
 	"github.com/rs/zerolog/log"
 )
@@ -16,9 +16,9 @@ const GlobalWorkerPid = 0
 
 // TODO: cilium/ebpf does not support .kconfig Therefore; for now, we build object files per kernel version.
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go@v0.9.0 -target $BPF_TARGET -cflags $BPF_CFLAGS -type tls_chunk -type goid_offsets tracer bpf/tracer.c
+//go:generate go run github.com/kubeshark/ebpf/cmd/bpf2go@v0.9.1 -target $BPF_TARGET -cflags $BPF_CFLAGS -type tls_chunk -type goid_offsets tracer bpf/tracer.c
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go@v0.9.0 -target $BPF_TARGET -cflags "${BPF_CFLAGS} -DKERNEL_BEFORE_4_6" -type tls_chunk -type goid_offsets tracer46 bpf/tracer.c
+//go:generate go run github.com/kubeshark/ebpf/cmd/bpf2go@v0.9.1 -target $BPF_TARGET -cflags "${BPF_CFLAGS} -DKERNEL_BEFORE_4_6" -type tls_chunk -type goid_offsets tracer46 bpf/tracer.c
 
 type Tracer struct {
 	bpfObjects      tracerObjects
@@ -86,16 +86,21 @@ func (t *Tracer) Init(chunksBufferSize int, logBufferSize int, procfs string, ex
 	return t.poller.init(&t.bpfObjects, chunksBufferSize)
 }
 
-func (t *Tracer) Poll(emitter api.Emitter, options *api.TrafficFilteringOptions, streamsMap api.TcpStreamMap) {
-	t.poller.poll(emitter, options, streamsMap)
+func (t *Tracer) Poll(outputItems chan *api.OutputChannelItem, options *api.TrafficFilteringOptions, streamsMap api.TcpStreamMap) {
+	t.poller.poll(outputItems, options, streamsMap)
 }
 
 func (t *Tracer) PollForLogging() {
 	t.bpfLogger.poll()
 }
 
-func (t *Tracer) GlobalSSLLibTarget(sslLibrary string) error {
-	return t.targetSSLLibPid(GlobalWorkerPid, sslLibrary, api.UnknownNamespace)
+func (t *Tracer) GlobalSSLLibTarget(procfs string, pid string) error {
+	_pid, err := strconv.Atoi(pid)
+	if err != nil {
+		return err
+	}
+
+	return t.AddSSLLibPid(procfs, uint32(_pid), api.UnknownNamespace)
 }
 
 func (t *Tracer) GlobalGoTarget(procfs string, pid string) error {
@@ -111,8 +116,10 @@ func (t *Tracer) AddSSLLibPid(procfs string, pid uint32, namespace string) error
 	sslLibrary, err := findSsllib(procfs, pid)
 
 	if err != nil {
-		log.Info().Msg(fmt.Sprintf("PID skipped no libssl.so found (pid: %d) %v", pid, err))
+		log.Warn().Err(err).Int("pid", int(pid)).Msg("PID skipped no libssl.so found:")
 		return nil // hide the error on purpose, it's OK for a process to not use libssl.so
+	} else {
+		log.Info().Str("path", sslLibrary).Int("pid", int(pid)).Msg("Found libssl.so:")
 	}
 
 	return t.targetSSLLibPid(pid, sslLibrary, namespace)
@@ -197,7 +204,7 @@ func (t *Tracer) targetSSLLibPid(pid uint32, sslLibrary string, namespace string
 		return err
 	}
 
-	log.Info().Msg(fmt.Sprintf("Targetting TLS (pid: %v) (sslLibrary: %v)", pid, sslLibrary))
+	log.Info().Msg(fmt.Sprintf("Targetting TLS (pid: %v) (libssl: %v)", pid, sslLibrary))
 
 	t.sslHooksStructs = append(t.sslHooksStructs, newSsl)
 
