@@ -13,6 +13,12 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+type tlsLayers struct {
+	ethernet *layers.Ethernet
+	ipv4     *layers.IPv4
+	tcp      *layers.TCP
+}
+
 type tlsReader struct {
 	key           string
 	chunks        chan *tracerTlsChunk
@@ -28,21 +34,23 @@ type tlsReader struct {
 	counterPair   *api.CounterPair
 	parent        *tlsStream
 	reqResMatcher api.RequestResponseMatcher
+	layers        *tlsLayers
 }
 
 func (r *tlsReader) newChunk(chunk *tracerTlsChunk) {
 	r.captureTime = time.Now()
 	r.seenChunks = r.seenChunks + 1
 
-	if r.parent.GetIsIdentifyMode() {
-		r.writePacket(
-			layers.LayerTypeEthernet,
-			r.getEthernet(),
-			r.getIPv4(),
-			r.getTCP(),
-			gopacket.Payload(chunk.getRecordedData()),
-		)
-	}
+	data := chunk.getRecordedData()
+
+	r.setLayers(data)
+	r.writePacket(
+		layers.LayerTypeEthernet,
+		r.layers.ethernet,
+		r.layers.ipv4,
+		r.layers.tcp,
+		gopacket.Payload(data),
+	)
 
 	r.chunks <- chunk
 }
@@ -114,7 +122,7 @@ func (r *tlsReader) GetIsClosed() bool {
 
 func (r *tlsReader) writePacket(firstLayerType gopacket.LayerType, l ...gopacket.SerializableLayer) {
 	buf := gopacket.NewSerializeBuffer()
-	opts := gopacket.SerializeOptions{FixLengths: true}
+	opts := gopacket.SerializeOptions{FixLengths: true, ComputeChecksums: false}
 	err := gopacket.SerializeLayers(buf, opts, l...)
 	if err != nil {
 		log.Error().Err(err).Msg("Did an oopsy serializing packet:")
@@ -138,7 +146,28 @@ func (r *tlsReader) writePacket(firstLayerType gopacket.LayerType, l ...gopacket
 	}
 }
 
-func (r *tlsReader) getEthernet() gopacket.SerializableLayer {
+func (r *tlsReader) doTcpSeqAckWalk(data []byte) {
+	if r.layers != nil {
+		if r.isClient {
+			r.layers.tcp.Ack += uint32(len(data))
+		} else {
+			r.layers.tcp.Seq = r.layers.tcp.Ack
+		}
+		return
+	}
+}
+
+func (r *tlsReader) setLayers(data []byte) {
+	r.doTcpSeqAckWalk(data)
+
+	r.layers = &tlsLayers{
+		ethernet: r.getEthernet(),
+		ipv4:     r.getIPv4(),
+		tcp:      r.getTCP(),
+	}
+}
+
+func (r *tlsReader) getEthernet() *layers.Ethernet {
 	srcMac, _ := net.ParseMAC("00:00:5e:00:53:01")
 	dstMac, _ := net.ParseMAC("00:00:5e:00:53:02")
 	res := &layers.Ethernet{
@@ -149,7 +178,7 @@ func (r *tlsReader) getEthernet() gopacket.SerializableLayer {
 	return res
 }
 
-func (r *tlsReader) getIPv4() gopacket.SerializableLayer {
+func (r *tlsReader) getIPv4() *layers.IPv4 {
 	srcIP, _, err := net.ParseCIDR(r.tcpID.SrcIP + "/24")
 	if err != nil {
 		panic(err)
@@ -185,6 +214,6 @@ func (r *tlsReader) getTCP() *layers.TCP {
 		PSH:     false,
 		ACK:     true,
 		Seq:     1,
-		Ack:     1,
+		Ack:     0,
 	}
 }

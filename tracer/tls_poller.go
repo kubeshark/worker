@@ -27,6 +27,7 @@ const (
 
 type tlsPoller struct {
 	tls            *Tracer
+	streams        map[string]*tlsStream
 	readers        map[string]*tlsReader
 	closedReaders  chan string
 	reqResMatcher  api.RequestResponseMatcher
@@ -41,6 +42,7 @@ type tlsPoller struct {
 func newTlsPoller(tls *Tracer, extension *api.Extension, procfs string) (*tlsPoller, error) {
 	poller := &tlsPoller{
 		tls:           tls,
+		streams:       make(map[string]*tlsStream),
 		readers:       make(map[string]*tlsReader),
 		closedReaders: make(chan string, 100),
 		reqResMatcher: extension.Dissector.NewResponseRequestMatcher(),
@@ -136,11 +138,21 @@ func (p *tlsPoller) handleTlsChunk(chunk *tracerTlsChunk, extension *api.Extensi
 	options *api.TrafficFilteringOptions, streamsMap api.TcpStreamMap) error {
 	address := chunk.getAddressPair()
 
+	// Creates one *tlsStream per TCP stream
+	streamKey := buildTlsStreamKey(address, chunk.isRequest())
+	stream, streamExists := p.streams[streamKey]
+	if !streamExists {
+		stream = NewTlsStream(streamsMap)
+		stream.setId(streamsMap.NextId())
+		streamsMap.Store(stream.getId(), stream)
+		p.streams[streamKey] = stream
+	}
+
+	// Creates two *tlsReader (s) per TCP stream
 	key := buildTlsKey(address)
 	reader, exists := p.readers[key]
-
 	if !exists {
-		reader = p.startNewTlsReader(chunk, &address, key, outputItems, extension, options, streamsMap)
+		reader = p.startNewTlsReader(chunk, &address, key, outputItems, extension, options, stream)
 		p.readers[key] = reader
 	}
 
@@ -155,13 +167,9 @@ func (p *tlsPoller) handleTlsChunk(chunk *tracerTlsChunk, extension *api.Extensi
 
 func (p *tlsPoller) startNewTlsReader(chunk *tracerTlsChunk, address *addressPair, key string,
 	outputItems chan *api.OutputChannelItem, extension *api.Extension, options *api.TrafficFilteringOptions,
-	streamsMap api.TcpStreamMap) *tlsReader {
+	stream *tlsStream) *tlsReader {
 
 	tcpid := p.buildTcpId(address)
-
-	stream := NewTlsStream(streamsMap)
-	stream.setId(streamsMap.NextId())
-	streamsMap.Store(stream.getId(), stream)
 
 	doneHandler := func(r *tlsReader) {
 		p.closeReader(key, r)
@@ -216,6 +224,14 @@ func (p *tlsPoller) closeReader(key string, r *tlsReader) {
 
 func buildTlsKey(address addressPair) string {
 	return fmt.Sprintf("%s:%d>%s:%d", address.srcIp, address.srcPort, address.dstIp, address.dstPort)
+}
+
+func buildTlsStreamKey(address addressPair, isRequest bool) string {
+	if isRequest {
+		return fmt.Sprintf("%s:%d>%s:%d", address.srcIp, address.srcPort, address.dstIp, address.dstPort)
+	} else {
+		return fmt.Sprintf("%s:%d>%s:%d", address.dstIp, address.dstPort, address.srcIp, address.srcPort)
+	}
 }
 
 func (p *tlsPoller) buildTcpId(address *addressPair) api.TcpID {
