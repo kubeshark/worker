@@ -132,7 +132,7 @@ func processPackets(id string, outputChannel chan *api.OutputChannelItem, opts *
 		assembler.ProcessPacket(packetInfo, false)
 	}
 
-	s.Handle.Close()
+	s.Close()
 }
 
 func writeChannelToSocket(outputChannel <-chan *api.OutputChannelItem, ws *websocket.Conn, query string, quit chan bool) {

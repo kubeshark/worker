@@ -74,7 +74,7 @@ func (m *PacketSourceManager) updateMtlsPods(procfs string, pods []v1.Pod,
 
 	for pid, src := range m.sources {
 		if !misc.Contains(relevantPids, pid) {
-			src.close()
+			src.Close()
 			delete(m.sources, pid)
 		}
 	}
@@ -150,7 +150,7 @@ func (m *PacketSourceManager) setBPFFilter(pods []v1.Pod) {
 
 func (m *PacketSourceManager) Close() {
 	for _, src := range m.sources {
-		src.close()
+		src.Close()
 	}
 }
 

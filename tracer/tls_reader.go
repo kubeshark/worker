@@ -36,6 +36,8 @@ func (r *tlsReader) newChunk(chunk *tracerTlsChunk) {
 
 	if r.parent.GetIsIdentifyMode() {
 		r.writePacket(
+			layers.LayerTypeEthernet,
+			r.getEthernet(),
 			r.getIPv4(),
 			r.getTCP(),
 			gopacket.Payload(chunk.getRecordedData()),
@@ -110,7 +112,7 @@ func (r *tlsReader) GetIsClosed() bool {
 	return false
 }
 
-func (r *tlsReader) writePacket(l ...gopacket.SerializableLayer) {
+func (r *tlsReader) writePacket(firstLayerType gopacket.LayerType, l ...gopacket.SerializableLayer) {
 	buf := gopacket.NewSerializeBuffer()
 	opts := gopacket.SerializeOptions{FixLengths: true}
 	err := gopacket.SerializeLayers(buf, opts, l...)
@@ -118,17 +120,33 @@ func (r *tlsReader) writePacket(l ...gopacket.SerializableLayer) {
 		log.Error().Err(err).Msg("Did an oopsy serializing packet:")
 	}
 
-	packet := gopacket.NewPacket(buf.Bytes(), layers.LayerTypeIPv4, gopacket.Lazy)
+	packet := gopacket.NewPacket(buf.Bytes(), firstLayerType, gopacket.Lazy)
 	outgoingPacket := packet.Data()
 
 	info := packet.Metadata().CaptureInfo
 	info.Length = len(outgoingPacket)
 	info.CaptureLength = len(outgoingPacket)
 
+	if r.parent.pcapWriter == nil {
+		log.Debug().Msg("PCAP writer for this TLS stream does not exist (too many open files)!")
+		return
+	}
+
 	err = r.parent.pcapWriter.WritePacket(info, outgoingPacket)
 	if err != nil {
 		log.Error().Err(err).Msg("Did an oopsy writing PCAP:")
 	}
+}
+
+func (r *tlsReader) getEthernet() gopacket.SerializableLayer {
+	srcMac, _ := net.ParseMAC("00:00:5e:00:53:01")
+	dstMac, _ := net.ParseMAC("00:00:5e:00:53:02")
+	res := &layers.Ethernet{
+		SrcMAC:       srcMac,
+		DstMAC:       dstMac,
+		EthernetType: layers.EthernetTypeIPv4,
+	}
+	return res
 }
 
 func (r *tlsReader) getIPv4() gopacket.SerializableLayer {

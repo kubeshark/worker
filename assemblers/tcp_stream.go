@@ -96,7 +96,7 @@ func (t *tcpStream) close() {
 
 	t.isClosed = true
 
-	if t.GetIsIdentifyMode() {
+	if t.pcap != nil && t.GetIsIdentifyMode() {
 		log.Debug().Str("pcap", t.pcap.Name()).Msg("Closing:")
 		t.pcap.Close()
 		pcapPath := misc.BuildPcapPath(t.id)

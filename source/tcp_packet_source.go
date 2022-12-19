@@ -74,6 +74,7 @@ func NewTcpPacketSource(name, filename string, interfaceName string, packetCaptu
 	var ok bool
 	decoderName := result.Handle.LinkType().String()
 	if decoder, ok = gopacket.DecodersByLayerName[decoderName]; !ok {
+		result.Handle.Close()
 		return nil, fmt.Errorf("no decoder named %v", decoderName)
 	}
 
@@ -90,7 +91,7 @@ func (source *TcpPacketSource) setBPFFilter(expr string) (err error) {
 	return source.Handle.SetBPF(expr)
 }
 
-func (source *TcpPacketSource) close() {
+func (source *TcpPacketSource) Close() {
 	if source.Handle != nil {
 		source.Handle.Close()
 	}

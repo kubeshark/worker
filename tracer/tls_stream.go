@@ -3,6 +3,7 @@ package tracer
 import (
 	"fmt"
 	"os"
+	"sync"
 
 	"github.com/kubeshark/base/pkg/api"
 	"github.com/kubeshark/gopacket/layers"
@@ -12,38 +13,38 @@ import (
 )
 
 type tlsStream struct {
-	id           int64
-	pcapId       string
-	itemCount    int64
-	identifyMode bool
-	emittable    bool
-	reader       *tlsReader
-	protocol     *api.Protocol
-	pcap         *os.File
-	pcapWriter   *pcapgo.Writer
+	id         int64
+	pcapId     string
+	itemCount  int64
+	emittable  bool
+	isClosed   bool
+	reader     *tlsReader
+	protocol   *api.Protocol
+	streamsMap api.TcpStreamMap
+	pcap       *os.File
+	pcapWriter *pcapgo.Writer
+	sync.Mutex
 }
 
-func NewTlsStream() *tlsStream {
+func NewTlsStream(streamsMap api.TcpStreamMap) *tlsStream {
 	return &tlsStream{
-		identifyMode: true,
+		streamsMap: streamsMap,
 	}
 }
 
 func (t *tlsStream) createPcapWriter() {
-	if t.GetIsIdentifyMode() {
-		tmpPcapPath := misc.BuildTlsTmpPcapPath(t.id)
-		log.Debug().Str("file", tmpPcapPath).Msg("Dumping TLS stream:")
+	tmpPcapPath := misc.BuildTlsTmpPcapPath(t.id)
+	log.Debug().Str("file", tmpPcapPath).Msg("Dumping TLS stream:")
 
-		var err error
-		t.pcap, err = os.OpenFile(tmpPcapPath, os.O_CREATE|os.O_WRONLY, 0644)
+	var err error
+	t.pcap, err = os.OpenFile(tmpPcapPath, os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Error().Err(err).Msg("Couldn't create PCAP (TLS):")
+	} else {
+		t.pcapWriter = pcapgo.NewWriter(t.pcap)
+		err = t.pcapWriter.WriteFileHeader(uint32(misc.Snaplen), layers.LinkTypeEthernet)
 		if err != nil {
-			log.Error().Err(err).Msg("Couldn't create PCAP (TLS):")
-		} else {
-			t.pcapWriter = pcapgo.NewWriter(t.pcap)
-			err = t.pcapWriter.WriteFileHeader(uint32(misc.Snaplen), layers.LinkTypeIPv4)
-			if err != nil {
-				log.Error().Err(err).Msg("While writing the PCAP header:")
-			}
+			log.Error().Err(err).Msg("While writing the PCAP header:")
 		}
 	}
 }
@@ -57,6 +58,26 @@ func (t *tlsStream) setId(id int64) {
 	t.createPcapWriter()
 }
 
+func (t *tlsStream) close() {
+	t.Lock()
+	defer t.Unlock()
+
+	if t.isClosed {
+		return
+	}
+
+	t.isClosed = true
+
+	if t.pcap != nil {
+		log.Debug().Str("pcap", t.pcap.Name()).Msg("Closing:")
+		t.pcap.Close()
+		pcapPath := misc.BuildPcapPath(t.id)
+		misc.AlivePcaps.Delete(pcapPath)
+	}
+
+	t.streamsMap.Delete(t.id)
+}
+
 func (t *tlsStream) isEmittable() bool {
 	return t.emittable
 }
@@ -66,7 +87,7 @@ func (t *tlsStream) SetProtocol(protocol *api.Protocol) {
 }
 
 func (t *tlsStream) SetAsEmittable() {
-	if t.GetIsIdentifyMode() && !t.isEmittable() {
+	if !t.isEmittable() {
 		tmpPcapPath := misc.BuildTlsTmpPcapPath(t.id)
 		pcapPath := misc.BuildTlsPcapPath(t.id)
 		misc.AlivePcaps.Store(pcapPath, true)
@@ -84,7 +105,7 @@ func (t *tlsStream) GetPcapId() string {
 }
 
 func (t *tlsStream) GetIsIdentifyMode() bool {
-	return t.identifyMode
+	return true
 }
 
 func (t *tlsStream) GetReqResMatchers() []api.RequestResponseMatcher {
@@ -96,7 +117,7 @@ func (t *tlsStream) GetIsTargetted() bool {
 }
 
 func (t *tlsStream) GetIsClosed() bool {
-	return false
+	return t.isClosed
 }
 
 func (t *tlsStream) IncrementItemCount() {

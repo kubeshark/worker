@@ -159,13 +159,14 @@ func (p *tlsPoller) startNewTlsReader(chunk *tracerTlsChunk, address *addressPai
 
 	tcpid := p.buildTcpId(address)
 
-	doneHandler := func(r *tlsReader) {
-		p.closeReader(key, r)
-	}
-
-	stream := NewTlsStream()
+	stream := NewTlsStream(streamsMap)
 	stream.setId(streamsMap.NextId())
 	streamsMap.Store(stream.getId(), stream)
+
+	doneHandler := func(r *tlsReader) {
+		p.closeReader(key, r)
+		stream.close()
+	}
 
 	var emitter api.Emitter = &api.Emitting{
 		AppStats:      &diagnose.AppStats,

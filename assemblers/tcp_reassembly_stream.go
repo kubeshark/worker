@@ -166,6 +166,12 @@ func (t *tcpReassemblyStream) ReceivePacket(packet gopacket.Packet) {
 		info := packet.Metadata().CaptureInfo
 		info.Length = len(outgoingPacket)
 		info.CaptureLength = len(outgoingPacket)
+
+		if t.tcpStream.pcapWriter == nil {
+			log.Debug().Msg("PCAP writer for this TCP stream does not exist (too many open files)!")
+			return
+		}
+
 		if err := t.tcpStream.pcapWriter.WritePacket(info, outgoingPacket); err != nil {
 			log.Error().Str("pcap", t.tcpStream.pcap.Name()).Err(err).Msg("Couldn't write the packet:")
 		}
