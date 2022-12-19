@@ -32,7 +32,7 @@ func NewTlsStream() *tlsStream {
 func (t *tlsStream) createPcapWriter() {
 	if t.GetIsIdentifyMode() {
 		tmpPcapPath := misc.BuildTlsTmpPcapPath(t.id)
-		log.Debug().Str("file", tmpPcapPath).Msg("Dumping TCP stream:")
+		log.Debug().Str("file", tmpPcapPath).Msg("Dumping TLS stream:")
 
 		var err error
 		t.pcap, err = os.OpenFile(tmpPcapPath, os.O_CREATE|os.O_WRONLY, 0644)
@@ -40,7 +40,7 @@ func (t *tlsStream) createPcapWriter() {
 			log.Error().Err(err).Msg("Couldn't create PCAP:")
 		} else {
 			t.pcapWriter = pcapgo.NewWriter(t.pcap)
-			err = t.pcapWriter.WriteFileHeader(uint32(misc.Snaplen), layers.LinkTypeLinuxSLL)
+			err = t.pcapWriter.WriteFileHeader(uint32(misc.Snaplen), layers.LinkTypeIPv4)
 			if err != nil {
 				log.Error().Err(err).Msg("While writing the PCAP header:")
 			}

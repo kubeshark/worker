@@ -36,7 +36,7 @@ func (r *tlsReader) newChunk(chunk *tracerTlsChunk) {
 
 	if r.parent.GetIsIdentifyMode() {
 		r.writePacket(
-			r.getIP(),
+			r.getIPv4(),
 			r.getTCP(),
 			gopacket.Payload(chunk.getRecordedData()),
 		)
@@ -110,28 +110,28 @@ func (r *tlsReader) GetIsClosed() bool {
 	return false
 }
 
-func (r *tlsReader) writePacket(layers ...gopacket.SerializableLayer) {
+func (r *tlsReader) writePacket(l ...gopacket.SerializableLayer) {
 	buf := gopacket.NewSerializeBuffer()
 	opts := gopacket.SerializeOptions{FixLengths: true}
-	err := gopacket.SerializeLayers(buf, opts, layers...)
+	err := gopacket.SerializeLayers(buf, opts, l...)
 	if err != nil {
 		log.Error().Err(err).Msg("Did an oopsy serializing packet:")
 	}
-	ci := gopacket.CaptureInfo{
-		Timestamp:      time.Now(),
-		CaptureLength:  len(buf.Bytes()),
-		Length:         len(buf.Bytes()),
-		InterfaceIndex: 0,
-	}
 
-	log.Info().Int("len", len(buf.Bytes())).Str("pcap", r.parent.pcap.Name()).Msg("Writing TLS chunk bytes to PCAP:")
-	err = r.parent.pcapWriter.WritePacket(ci, buf.Bytes())
+	packet := gopacket.NewPacket(buf.Bytes(), layers.LayerTypeIPv4, gopacket.Lazy)
+	outgoingPacket := packet.Data()
+
+	info := packet.Metadata().CaptureInfo
+	info.Length = len(outgoingPacket)
+	info.CaptureLength = len(outgoingPacket)
+
+	err = r.parent.pcapWriter.WritePacket(info, outgoingPacket)
 	if err != nil {
 		log.Error().Err(err).Msg("Did an oopsy writing PCAP:")
 	}
 }
 
-func (r *tlsReader) getIP() gopacket.SerializableLayer {
+func (r *tlsReader) getIPv4() gopacket.SerializableLayer {
 	srcIP, _, err := net.ParseCIDR(r.tcpID.SrcIP + "/24")
 	if err != nil {
 		panic(err)
