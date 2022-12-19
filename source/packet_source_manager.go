@@ -98,17 +98,13 @@ func (m *PacketSourceManager) getRelevantPids(procfs string, pods []v1.Pod) []st
 	if envoyPids, err := discoverRelevantEnvoyPids(procfs, pods); err != nil {
 		log.Warn().Msg(fmt.Sprintf("Unable to discover envoy pids - %v", err))
 	} else {
-		for _, pid := range envoyPids {
-			relevantPids = append(relevantPids, pid)
-		}
+		relevantPids = append(relevantPids, envoyPids...)
 	}
 
 	if linkerdPids, err := discoverRelevantLinkerdPids(procfs, pods); err != nil {
 		log.Warn().Msg(fmt.Sprintf("Unable to discover linkerd pids - %v", err))
 	} else {
-		for _, pid := range linkerdPids {
-			relevantPids = append(relevantPids, pid)
-		}
+		relevantPids = append(relevantPids, linkerdPids...)
 	}
 
 	return relevantPids
