@@ -4,11 +4,8 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
-	"os"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -158,10 +155,6 @@ func (p *tlsPoller) handleTlsChunk(chunk *tracerTlsChunk, extension *api.Extensi
 
 	reader.newChunk(chunk)
 
-	if os.Getenv("KUBESHARK_VERBOSE_TRACER") == "true" {
-		p.logTls(chunk, key, reader)
-	}
-
 	return nil
 }
 
@@ -269,29 +262,6 @@ func (p *tlsPoller) clearPids() {
 		p.pidToNamespace.Delete(key)
 		return true
 	})
-}
-
-func (p *tlsPoller) logTls(chunk *tracerTlsChunk, key string, reader *tlsReader) {
-	var flagsStr string
-
-	if chunk.isClient() {
-		flagsStr = "C"
-	} else {
-		flagsStr = "S"
-	}
-
-	if chunk.isRead() {
-		flagsStr += "R"
-	} else {
-		flagsStr += "W"
-	}
-
-	str := strings.ReplaceAll(strings.ReplaceAll(string(chunk.Data[0:chunk.Recorded]), "\n", " "), "\r", "")
-
-	log.Info().Msg(fmt.Sprintf("[%-44s] %s #%-4d (fd: %d) (recorded %d/%d:%d) - %s - %s",
-		key, flagsStr, reader.seenChunks, chunk.Fd,
-		chunk.Recorded, chunk.Len, chunk.Start,
-		str, hex.EncodeToString(chunk.Data[0:chunk.Recorded])))
 }
 
 func (p *tlsPoller) fdCacheEvictCallback(key interface{}, value interface{}) {
