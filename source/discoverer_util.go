@@ -10,11 +10,11 @@ import (
 
 var numberRegex = regexp.MustCompile("[0-9]+")
 
-func getSingleValueFromEnvironmentVariableFile(filePath string, variableName string) (string, error) {
-	bytes, err := os.ReadFile(filePath)
+func getSingleValueFromEnvironmentVariableFile(fpath string, variableName string) (string, error) {
+	bytes, err := os.ReadFile(fpath)
 
 	if err != nil {
-		log.Warn().Err(err).Str("file", filePath).Msg("While reading environment file!")
+		log.Warn().Err(err).Str("file", fpath).Msg("While reading environment file!")
 		return "", err
 	}
 

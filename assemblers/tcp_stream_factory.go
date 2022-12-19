@@ -63,7 +63,7 @@ func (factory *tcpStreamFactory) New(net, transport gopacket.Flow, tcpLayer *lay
 
 	props := factory.getStreamProps(srcIp, srcPort, dstIp, dstPort)
 	isTargetted := props.isTargetted
-	stream := NewTcpStream(factory.pcapId, factory.identifyMode, isTargetted, factory.streamsMap, getPacketOrigin(ac))
+	stream := NewTcpStream(factory.pcapId, factory.identifyMode, isTargetted, factory.streamsMap)
 	var emitter api.Emitter = &api.Emitting{
 		AppStats:      &diagnose.AppStats,
 		Stream:        stream,
@@ -148,17 +148,6 @@ func (factory *tcpStreamFactory) getStreamProps(srcIP string, srcPort string, ds
 	} else {
 		return &streamProps{isTargetted: true}
 	}
-}
-
-func getPacketOrigin(ac reassembly.AssemblerContext) api.Capture {
-	c, ok := ac.(*context)
-
-	if !ok {
-		// If ac is not our context, fallback to Pcap
-		return api.Pcap
-	}
-
-	return c.Origin
 }
 
 type streamProps struct {

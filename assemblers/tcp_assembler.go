@@ -41,7 +41,6 @@ type TcpAssembler struct {
 // The assembler context
 type context struct {
 	CaptureInfo gopacket.CaptureInfo
-	Origin      api.Capture
 }
 
 func (c *context) GetCaptureInfo() gopacket.CaptureInfo {
@@ -110,11 +109,11 @@ func (a *TcpAssembler) ProcessPacket(packetInfo source.TcpPacketInfo, dumpPacket
 
 	tcp := packet.Layer(layers.LayerTypeTCP)
 	if tcp != nil {
-		a.processTcpPacket(packetInfo.Source.Origin, packet, tcp.(*layers.TCP))
+		a.processTcpPacket(packet, tcp.(*layers.TCP))
 	}
 }
 
-func (a *TcpAssembler) processTcpPacket(origin api.Capture, packet gopacket.Packet, tcp *layers.TCP) {
+func (a *TcpAssembler) processTcpPacket(packet gopacket.Packet, tcp *layers.TCP) {
 	diagnose.AppStats.IncTcpPacketsCount()
 	if a.shouldIgnorePort(uint16(tcp.DstPort)) || a.shouldIgnorePort(uint16(tcp.SrcPort)) {
 		diagnose.AppStats.IncIgnoredPacketsCount()
@@ -123,7 +122,6 @@ func (a *TcpAssembler) processTcpPacket(origin api.Capture, packet gopacket.Pack
 
 	c := context{
 		CaptureInfo: packet.Metadata().CaptureInfo,
-		Origin:      origin,
 	}
 	diagnose.InternalStats.Totalsz += len(tcp.Payload)
 	a.AssembleWithContext(packet, tcp, &c)

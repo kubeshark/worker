@@ -56,7 +56,7 @@ func BuildTmpPcapPath(id int64) string {
 }
 
 func BuildTlsPcapPath(id int64) string {
-	return fmt.Sprintf("%s/tls_stream_%09d.pcap", GetPcapsDir(), id)
+	return fmt.Sprintf("%s/tcp_stream_%09d_tls.pcap", GetPcapsDir(), id)
 }
 
 func BuildTlsTmpPcapPath(id int64) string {
@@ -83,4 +83,8 @@ func CleanUpTmpPcaps() error {
 
 func GetNameResolutionHistoryPath() string {
 	return fmt.Sprintf("%s/%s", GetDataDir(), "name_resolution_history.json")
+}
+
+func IsTls(id string) bool {
+	return strings.HasSuffix(id[:len(id)-len(filepath.Ext(id))], "_tls")
 }

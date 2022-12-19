@@ -44,13 +44,13 @@ func findLibraryByPid(procfs string, pid uint32, libraryName string) (string, er
 			continue
 		}
 
-		filepath := parts[5]
+		fpath := parts[5]
 
-		if libraryName != "" && !strings.Contains(filepath, libraryName) {
+		if libraryName != "" && !strings.Contains(fpath, libraryName) {
 			continue
 		}
 
-		fullpath := fmt.Sprintf("%v/%v/root%v", procfs, pid, filepath)
+		fullpath := fmt.Sprintf("%v/%v/root%v", procfs, pid, fpath)
 
 		if _, err := os.Stat(fullpath); os.IsNotExist(err) {
 			continue

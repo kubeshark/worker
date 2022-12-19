@@ -107,7 +107,7 @@ func handlePcapFile(id string, outputChannel chan *api.OutputChannelItem, opts *
 	streamsMap := assemblers.NewTcpStreamMap(false)
 	packets := make(chan source.TcpPacketInfo)
 	pcapPath := misc.GetPcapPath(id)
-	s, err := source.NewTcpPacketSource(id, misc.GetPcapPath(id), "", "libpcap", api.Pcap)
+	s, err := source.NewTcpPacketSource(id, misc.GetPcapPath(id), "", "libpcap")
 	if err != nil {
 		log.Error().Err(err).Str("pcap", id).Msg("Failed to create TCP packet source!")
 		return
@@ -151,6 +151,9 @@ func writeChannelToSocket(outputChannel <-chan *api.OutputChannelItem, ws *webso
 		}
 
 		entry := itemToEntry(finalItem)
+		entry.Id = item.Id
+		entry.Tls = misc.IsTls(entry.Id)
+
 		entryMarshaled, err := json.Marshal(entry)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed marshalling entry:")
@@ -175,7 +178,6 @@ func writeChannelToSocket(outputChannel <-chan *api.OutputChannelItem, ws *webso
 		}
 
 		baseEntry := summarizeEntry(alteredEntry)
-		baseEntry.Id = item.Id
 
 		summary, err := json.Marshal(baseEntry)
 		if err != nil {

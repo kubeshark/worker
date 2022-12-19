@@ -75,10 +75,10 @@ func GetMerge(c *gin.Context) {
 func GetReplay(c *gin.Context) {
 	id := c.Param("id")
 
-	filepath := misc.GetPcapPath(id)
-	err := replay.Replay(filepath, replay.DefaultRouteInterface(""))
+	pcapPath := misc.GetPcapPath(id)
+	err := replay.Replay(pcapPath, replay.DefaultRouteInterface(""))
 	if err != nil {
-		log.Error().Str("path", filepath).Err(err).Msg("Couldn't replay the PCAP:")
+		log.Error().Str("path", pcapPath).Err(err).Msg("Couldn't replay the PCAP:")
 		c.JSON(http.StatusInternalServerError, err)
 		return
 	}

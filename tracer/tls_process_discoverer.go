@@ -105,12 +105,12 @@ func buildContainerIdsMap(pods *[]v1.Pod) map[string]v1.Pod {
 }
 
 func getProcessCgroup(procfs string, pid string) (string, error) {
-	filePath := fmt.Sprintf("%s/%s/cgroup", procfs, pid)
+	fpath := fmt.Sprintf("%s/%s/cgroup", procfs, pid)
 
-	bytes, err := os.ReadFile(filePath)
+	bytes, err := os.ReadFile(fpath)
 
 	if err != nil {
-		log.Warn().Msg(fmt.Sprintf("Error reading cgroup file %s - %v", filePath, err))
+		log.Warn().Msg(fmt.Sprintf("Error reading cgroup file %s - %v", fpath, err))
 		return "", err
 	}
 

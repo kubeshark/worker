@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/kubeshark/base/pkg/api"
 	"github.com/kubeshark/gopacket"
 	"github.com/kubeshark/gopacket/ip4defrag"
 	"github.com/kubeshark/gopacket/layers"
@@ -26,7 +25,6 @@ type TcpPacketSource struct {
 	Handle    Handle
 	defragger *ip4defrag.IPv4Defragmenter
 	name      string
-	Origin    api.Capture
 }
 
 type TcpPacketInfo struct {
@@ -34,14 +32,12 @@ type TcpPacketInfo struct {
 	Source *TcpPacketSource
 }
 
-func NewTcpPacketSource(name, filename string, interfaceName string, packetCapture string,
-	origin api.Capture) (*TcpPacketSource, error) {
+func NewTcpPacketSource(name, filename string, interfaceName string, packetCapture string) (*TcpPacketSource, error) {
 	var err error
 
 	result := &TcpPacketSource{
 		name:      name,
 		defragger: ip4defrag.NewIPv4Defragmenter(),
-		Origin:    origin,
 	}
 
 	targetSizeMb := 8

@@ -45,8 +45,8 @@ const (
 	goReadSymbol                = "crypto/tls.(*Conn).Read"
 )
 
-func findGoOffsets(filePath string) (goOffsets, error) {
-	offsets, goidOffset, gStructOffset, err := getOffsets(filePath)
+func findGoOffsets(fpath string) (goOffsets, error) {
+	offsets, goidOffset, gStructOffset, err := getOffsets(fpath)
 	if err != nil {
 		return goOffsets{}, err
 	}
@@ -58,7 +58,7 @@ func findGoOffsets(filePath string) (goOffsets, error) {
 	goVersionOffset, err := getOffset(offsets, goVersionSymbol)
 	if err == nil {
 		// TODO: Replace this logic with https://pkg.go.dev/debug/buildinfo#ReadFile once we upgrade to 1.18
-		passed, goVersion, err = checkGoVersion(filePath, goVersionOffset)
+		passed, goVersion, err = checkGoVersion(fpath, goVersionOffset)
 		if err != nil {
 			return goOffsets{}, fmt.Errorf("Checking Go version: %s", err)
 		}
@@ -199,7 +199,7 @@ func getGoidOffset(elfFile *elf.File) (goidOffset uint64, gStructOffset uint64, 
 	return
 }
 
-func getOffsets(filePath string) (offsets map[string]*goExtendedOffset, goidOffset uint64, gStructOffset uint64, err error) {
+func getOffsets(fpath string) (offsets map[string]*goExtendedOffset, goidOffset uint64, gStructOffset uint64, err error) {
 	var engine gapstone.Engine
 	switch runtime.GOARCH {
 	case "amd64":
@@ -222,7 +222,7 @@ func getOffsets(filePath string) (offsets map[string]*goExtendedOffset, goidOffs
 	engineMajor, engineMinor := engine.Version()
 	log.Info().Msg(fmt.Sprintf(
 		"Disassembling %s with Capstone %d.%d (arch: %d, mode: %d)",
-		filePath,
+		fpath,
 		engineMajor,
 		engineMinor,
 		engine.Arch(),
@@ -231,7 +231,7 @@ func getOffsets(filePath string) (offsets map[string]*goExtendedOffset, goidOffs
 
 	offsets = make(map[string]*goExtendedOffset)
 	var fd *os.File
-	fd, err = os.Open(filePath)
+	fd, err = os.Open(fpath)
 	if err != nil {
 		return
 	}
@@ -334,8 +334,8 @@ func getOffset(offsets map[string]*goExtendedOffset, symbol string) (*goExtended
 	return nil, fmt.Errorf("symbol %s: %w", symbol, link.ErrNoSymbol)
 }
 
-func checkGoVersion(filePath string, offset *goExtendedOffset) (bool, string, error) {
-	fd, err := os.Open(filePath)
+func checkGoVersion(fpath string, offset *goExtendedOffset) (bool, string, error) {
+	fd, err := os.Open(fpath)
 	if err != nil {
 		return false, "", err
 	}

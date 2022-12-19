@@ -5,12 +5,10 @@ import (
 	"log"
 	"runtime"
 
-	"github.com/kubeshark/base/pkg/api"
 	"github.com/vishvananda/netns"
 )
 
-func newNetnsPacketSource(procfs string, pid string, interfaceName string, packetCapture string,
-	origin api.Capture) (*TcpPacketSource, error) {
+func newNetnsPacketSource(procfs string, pid string, interfaceName string, packetCapture string) (*TcpPacketSource, error) {
 	nsh, err := netns.GetFromPath(fmt.Sprintf("%s/%s/ns/net", procfs, pid))
 
 	if err != nil {
@@ -18,7 +16,7 @@ func newNetnsPacketSource(procfs string, pid string, interfaceName string, packe
 		return nil, err
 	}
 
-	src, err := newPacketSourceFromNetnsHandle(pid, nsh, interfaceName, packetCapture, origin)
+	src, err := newPacketSourceFromNetnsHandle(pid, nsh, interfaceName, packetCapture)
 
 	if err != nil {
 		log.Printf("Error starting netns packet source for %s - %v", pid, err)
@@ -28,8 +26,7 @@ func newNetnsPacketSource(procfs string, pid string, interfaceName string, packe
 	return src, nil
 }
 
-func newPacketSourceFromNetnsHandle(pid string, nsh netns.NsHandle, interfaceName string, packetCapture string,
-	origin api.Capture) (*TcpPacketSource, error) {
+func newPacketSourceFromNetnsHandle(pid string, nsh netns.NsHandle, interfaceName string, packetCapture string) (*TcpPacketSource, error) {
 
 	done := make(chan *TcpPacketSource)
 	errors := make(chan error)
@@ -58,7 +55,7 @@ func newPacketSourceFromNetnsHandle(pid string, nsh netns.NsHandle, interfaceNam
 		}
 
 		name := fmt.Sprintf("netns-%s-%s", pid, interfaceName)
-		src, err := NewTcpPacketSource(name, "", interfaceName, packetCapture, origin)
+		src, err := NewTcpPacketSource(name, "", interfaceName, packetCapture)
 
 		if err != nil {
 			log.Printf("Error listening to PID %s - %v", pid, err)

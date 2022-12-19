@@ -29,7 +29,6 @@ type tcpStream struct {
 	isTargetted    bool
 	client         *tcpReader
 	server         *tcpReader
-	origin         api.Capture
 	counterPairs   []*api.CounterPair
 	reqResMatchers []api.RequestResponseMatcher
 	createdAt      time.Time
@@ -39,13 +38,12 @@ type tcpStream struct {
 	sync.Mutex
 }
 
-func NewTcpStream(pcapId string, identifyMode bool, isTargetted bool, streamsMap api.TcpStreamMap, capture api.Capture) *tcpStream {
+func NewTcpStream(pcapId string, identifyMode bool, isTargetted bool, streamsMap api.TcpStreamMap) *tcpStream {
 	t := &tcpStream{
 		pcapId:       pcapId,
 		identifyMode: identifyMode,
 		isTargetted:  isTargetted,
 		streamsMap:   streamsMap,
-		origin:       capture,
 		createdAt:    time.Now(),
 	}
 
@@ -152,10 +150,6 @@ func (t *tcpStream) GetPcapId() string {
 
 func (t *tcpStream) GetIsIdentifyMode() bool {
 	return t.identifyMode
-}
-
-func (t *tcpStream) GetOrigin() api.Capture {
-	return t.origin
 }
 
 func (t *tcpStream) GetReqResMatchers() []api.RequestResponseMatcher {

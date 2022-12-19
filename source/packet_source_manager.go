@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/kubeshark/base/pkg/api"
+	"github.com/kubeshark/worker/misc"
 	"github.com/rs/zerolog/log"
 	v1 "k8s.io/api/core/v1"
 )
@@ -50,7 +50,7 @@ func NewPacketSourceManager(procfs string, interfaceName string,
 }
 
 func newHostPacketSource(interfaceName string, packetCapture string) (*TcpPacketSource, error) {
-	source, err := NewTcpPacketSource(fmt.Sprintf("host-%s", interfaceName), "", interfaceName, packetCapture, api.Pcap)
+	source, err := NewTcpPacketSource(fmt.Sprintf("host-%s", interfaceName), "", interfaceName, packetCapture)
 	if err != nil {
 		return nil, err
 	}
@@ -73,15 +73,15 @@ func (m *PacketSourceManager) updateMtlsPods(procfs string, pods []v1.Pod,
 	log.Info().Msg(fmt.Sprintf("Updating mtls pods (new: %v) (current: %v)", relevantPids, m.sources))
 
 	for pid, src := range m.sources {
-		if _, ok := relevantPids[pid]; !ok {
+		if !misc.Contains(relevantPids, pid) {
 			src.close()
 			delete(m.sources, pid)
 		}
 	}
 
-	for pid, origin := range relevantPids {
+	for _, pid := range relevantPids {
 		if _, ok := m.sources[pid]; !ok {
-			source, err := newNetnsPacketSource(procfs, pid, interfaceName, packetCapture, origin)
+			source, err := newNetnsPacketSource(procfs, pid, interfaceName, packetCapture)
 
 			if err == nil {
 				go source.ReadPackets(packets)
@@ -91,15 +91,15 @@ func (m *PacketSourceManager) updateMtlsPods(procfs string, pods []v1.Pod,
 	}
 }
 
-func (m *PacketSourceManager) getRelevantPids(procfs string, pods []v1.Pod) map[string]api.Capture {
-	relevantPids := make(map[string]api.Capture)
-	relevantPids[hostSourcePid] = api.Pcap
+func (m *PacketSourceManager) getRelevantPids(procfs string, pods []v1.Pod) []string {
+	relevantPids := []string{}
+	relevantPids = append(relevantPids, hostSourcePid)
 
 	if envoyPids, err := discoverRelevantEnvoyPids(procfs, pods); err != nil {
 		log.Warn().Msg(fmt.Sprintf("Unable to discover envoy pids - %v", err))
 	} else {
 		for _, pid := range envoyPids {
-			relevantPids[pid] = api.Envoy
+			relevantPids = append(relevantPids, pid)
 		}
 	}
 
@@ -107,7 +107,7 @@ func (m *PacketSourceManager) getRelevantPids(procfs string, pods []v1.Pod) map[
 		log.Warn().Msg(fmt.Sprintf("Unable to discover linkerd pids - %v", err))
 	} else {
 		for _, pid := range linkerdPids {
-			relevantPids[pid] = api.Linkerd
+			relevantPids = append(relevantPids, pid)
 		}
 	}
 

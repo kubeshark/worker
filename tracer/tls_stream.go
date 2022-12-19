@@ -37,7 +37,7 @@ func (t *tlsStream) createPcapWriter() {
 		var err error
 		t.pcap, err = os.OpenFile(tmpPcapPath, os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
-			log.Error().Err(err).Msg("Couldn't create PCAP:")
+			log.Error().Err(err).Msg("Couldn't create PCAP (TLS):")
 		} else {
 			t.pcapWriter = pcapgo.NewWriter(t.pcap)
 			err = t.pcapWriter.WriteFileHeader(uint32(misc.Snaplen), layers.LinkTypeIPv4)
@@ -59,10 +59,6 @@ func (t *tlsStream) setId(id int64) {
 
 func (t *tlsStream) isEmittable() bool {
 	return t.emittable
-}
-
-func (t *tlsStream) GetOrigin() api.Capture {
-	return api.Ebpf
 }
 
 func (t *tlsStream) SetProtocol(protocol *api.Protocol) {
