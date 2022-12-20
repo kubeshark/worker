@@ -111,7 +111,7 @@ func getGStructOffset(exe *elf.File) (gStructOffset uint64, err error) {
 	var tlsg *elf.Symbol
 	switch exe.Machine {
 	case elf.EM_X86_64, elf.EM_386:
-		tlsg, err = getSymbol(exe, "runtime.tlsg")
+		tlsg, _ = getSymbol(exe, "runtime.tlsg")
 		if tlsg == nil || tls == nil {
 			gStructOffset = ^uint64(PtrSize) + 1 //-ptrSize
 			return
@@ -128,7 +128,7 @@ func getGStructOffset(exe *elf.File) (gStructOffset uint64, err error) {
 		gStructOffset = ^(memsz) + 1 + tlsg.Value // -tls.Memsz + tlsg.Value
 
 	case elf.EM_AARCH64:
-		tlsg, err = getSymbol(exe, "runtime.tls_g")
+		tlsg, _ = getSymbol(exe, "runtime.tls_g")
 		if tlsg == nil || tls == nil {
 			gStructOffset = 2 * uint64(PtrSize)
 			return
