@@ -54,7 +54,7 @@ func (c *tracerTlsChunk) isRequest() bool {
 	return (c.isClient() && c.isWrite()) || (c.isServer() && c.isRead())
 }
 
-func (c *tracerTlsChunk) getAddressPair() addressPair {
+func (c *tracerTlsChunk) getAddressPair() *addressPair {
 	var (
 		srcIp, dstIp     net.IP
 		srcPort, dstPort uint16
@@ -68,11 +68,19 @@ func (c *tracerTlsChunk) getAddressPair() addressPair {
 		dstIp, dstPort = c.getSrcAddress()
 	}
 
-	return addressPair{
+	return &addressPair{
 		srcIp:   srcIp,
 		srcPort: srcPort,
 		dstIp:   dstIp,
 		dstPort: dstPort,
+	}
+}
+
+func (c *tracerTlsChunk) getReader(stream *tlsStream) *tlsReader {
+	if c.isRequest() {
+		return stream.client
+	} else {
+		return stream.server
 	}
 }
 

@@ -1,13 +1,11 @@
 package tracer
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/binary"
 	"fmt"
 	"strconv"
 	"sync"
-	"time"
 
 	"github.com/go-errors/errors"
 	"github.com/hashicorp/golang-lru/simplelru"
@@ -25,8 +23,7 @@ const (
 type tlsPoller struct {
 	tls            *Tracer
 	streams        map[string]*tlsStream
-	readers        map[string]*tlsReader
-	closedReaders  chan string
+	closeStreams   chan string
 	reqResMatcher  api.RequestResponseMatcher
 	chunksReader   *perf.Reader
 	extension      *api.Extension
@@ -40,8 +37,7 @@ func newTlsPoller(tls *Tracer, extension *api.Extension, procfs string) (*tlsPol
 	poller := &tlsPoller{
 		tls:           tls,
 		streams:       make(map[string]*tlsStream),
-		readers:       make(map[string]*tlsReader),
-		closedReaders: make(chan string, 100),
+		closeStreams:  make(chan string, 100),
 		reqResMatcher: extension.Dissector.NewResponseRequestMatcher(),
 		extension:     extension,
 		chunksReader:  nil,
@@ -90,8 +86,8 @@ func (p *tlsPoller) poll(outputItems chan *api.OutputChannelItem, options *api.T
 			if err := p.handleTlsChunk(chunk, p.extension, outputItems, options, streamsMap); err != nil {
 				LogError(err)
 			}
-		case key := <-p.closedReaders:
-			delete(p.readers, key)
+		case key := <-p.closeStreams:
+			delete(p.streams, key)
 		}
 	}
 }
@@ -136,90 +132,40 @@ func (p *tlsPoller) handleTlsChunk(chunk *tracerTlsChunk, extension *api.Extensi
 	address := chunk.getAddressPair()
 
 	// Creates one *tlsStream per TCP stream
-	streamKey := buildTlsStreamKey(address, chunk.isRequest())
-	stream, streamExists := p.streams[streamKey]
+	key := buildTlsKey(address, chunk.isRequest())
+	stream, streamExists := p.streams[key]
 	if !streamExists {
-		stream = NewTlsStream(streamsMap)
+		stream = NewTlsStream(p, key, streamsMap)
 		stream.setId(streamsMap.NextId())
+		stream.addReqResMatcher(p.reqResMatcher)
 		streamsMap.Store(stream.getId(), stream)
-		p.streams[streamKey] = stream
+		p.streams[key] = stream
+
+		var emitter api.Emitter = &api.Emitting{
+			AppStats:      &diagnose.AppStats,
+			Stream:        stream,
+			OutputChannel: outputItems,
+		}
+
+		tlsEmitter := &tlsEmitter{
+			delegate:  emitter,
+			namespace: p.getNamespace(chunk.Pid),
+		}
+
+		stream.client = NewTlsReader(p.buildTcpId(address, true), stream, true, tlsEmitter, extension, p.reqResMatcher)
+		stream.server = NewTlsReader(p.buildTcpId(address, false), stream, false, tlsEmitter, extension, p.reqResMatcher)
+
+		go stream.client.run(options)
+		go stream.server.run(options)
 	}
 
-	// Creates two *tlsReader (s) per TCP stream
-	key := buildTlsKey(address)
-	reader, exists := p.readers[key]
-	if !exists {
-		reader = p.startNewTlsReader(chunk, &address, key, outputItems, extension, options, stream)
-		p.readers[key] = reader
-	}
-
+	reader := chunk.getReader(stream)
 	reader.newChunk(chunk)
 
 	return nil
 }
 
-func (p *tlsPoller) startNewTlsReader(chunk *tracerTlsChunk, address *addressPair, key string,
-	outputItems chan *api.OutputChannelItem, extension *api.Extension, options *api.TrafficFilteringOptions,
-	stream *tlsStream) *tlsReader {
-
-	tcpid := p.buildTcpId(address)
-
-	doneHandler := func(r *tlsReader) {
-		p.closeReader(key, r)
-		stream.close()
-	}
-
-	var emitter api.Emitter = &api.Emitting{
-		AppStats:      &diagnose.AppStats,
-		Stream:        stream,
-		OutputChannel: outputItems,
-	}
-
-	tlsEmitter := &tlsEmitter{
-		delegate:  emitter,
-		namespace: p.getNamespace(chunk.Pid),
-	}
-
-	reader := &tlsReader{
-		key:           key,
-		chunks:        make(chan *tracerTlsChunk, 1),
-		doneHandler:   doneHandler,
-		progress:      &api.ReadProgress{},
-		tcpID:         &tcpid,
-		isClient:      chunk.isRequest(),
-		captureTime:   time.Now(),
-		extension:     extension,
-		emitter:       tlsEmitter,
-		counterPair:   &api.CounterPair{},
-		parent:        stream,
-		reqResMatcher: p.reqResMatcher,
-	}
-	stream.reader = reader
-
-	go dissect(extension, reader, options)
-	return reader
-}
-
-func dissect(extension *api.Extension, reader api.TcpReader, options *api.TrafficFilteringOptions) {
-	b := bufio.NewReader(reader)
-
-	err := extension.Dissector.Dissect(b, reader, options)
-
-	if err != nil {
-		log.Warn().Err(err).Interface("tcp-id", reader.GetTcpID()).Msg("While dissecting TLS")
-	}
-}
-
-func (p *tlsPoller) closeReader(key string, r *tlsReader) {
-	close(r.chunks)
-	p.closedReaders <- key
-}
-
-func buildTlsKey(address addressPair) string {
-	return fmt.Sprintf("%s:%d>%s:%d", address.srcIp, address.srcPort, address.dstIp, address.dstPort)
-}
-
-func buildTlsStreamKey(address addressPair, isRequest bool) string {
+func buildTlsKey(address *addressPair, isRequest bool) string {
 	if isRequest {
 		return fmt.Sprintf("%s:%d>%s:%d", address.srcIp, address.srcPort, address.dstIp, address.dstPort)
 	} else {
@@ -227,13 +173,23 @@ func buildTlsStreamKey(address addressPair, isRequest bool) string {
 	}
 }
 
-func (p *tlsPoller) buildTcpId(address *addressPair) api.TcpID {
-	return api.TcpID{
-		SrcIP:   address.srcIp.String(),
-		DstIP:   address.dstIp.String(),
-		SrcPort: strconv.FormatUint(uint64(address.srcPort), 10),
-		DstPort: strconv.FormatUint(uint64(address.dstPort), 10),
-		Ident:   "",
+func (p *tlsPoller) buildTcpId(address *addressPair, isRequest bool) *api.TcpID {
+	if isRequest {
+		return &api.TcpID{
+			SrcIP:   address.srcIp.String(),
+			DstIP:   address.dstIp.String(),
+			SrcPort: strconv.FormatUint(uint64(address.srcPort), 10),
+			DstPort: strconv.FormatUint(uint64(address.dstPort), 10),
+			Ident:   "",
+		}
+	} else {
+		return &api.TcpID{
+			SrcIP:   address.dstIp.String(),
+			DstIP:   address.srcIp.String(),
+			SrcPort: strconv.FormatUint(uint64(address.dstPort), 10),
+			DstPort: strconv.FormatUint(uint64(address.srcPort), 10),
+			Ident:   "",
+		}
 	}
 }
 
